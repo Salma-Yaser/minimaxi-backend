@@ -7,6 +7,7 @@ import com.minimaxi.backend.entity.Threshold;
 import com.minimaxi.backend.repository.*;
 import com.minimaxi.backend.service.SettingsService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,6 +43,7 @@ public class SettingsServiceImpl implements SettingsService {
     // =========================================================================
 
     @Override
+    @Transactional(readOnly = true)
     public List<AssetTypeResponse> getAssetTypes() {
         return assetTypeRepository.findAll()
                 .stream()
@@ -50,6 +52,7 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
+    @Transactional
     public AssetTypeResponse createAssetType(CreateAssetTypeRequest request) {
         AssetType assetType = new AssetType();
         assetType.setName(request.getName());
@@ -64,6 +67,7 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
+    @Transactional
     public AssetTypeResponse updateAssetType(Long id, UpdateAssetTypeRequest request) {
         AssetType assetType = assetTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Asset type not found"));
@@ -74,6 +78,7 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
+    @Transactional
     public Map<String, Object> deleteAssetType(Long id) {
         if (!assetTypeRepository.existsById(id)) {
             throw new RuntimeException("Asset type not found");
@@ -97,6 +102,7 @@ public class SettingsServiceImpl implements SettingsService {
     // =========================================================================
 
     @Override
+    @Transactional(readOnly = true)
     public List<SensorThresholdResponse> getSensorThresholds() {
         return thresholdRepository.findAll()
                 .stream()
@@ -105,6 +111,7 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
+    @Transactional
     public SensorThresholdResponse createSensorThreshold(CreateSensorThresholdRequest request) {
         Threshold threshold = new Threshold();
 
@@ -117,7 +124,6 @@ public class SettingsServiceImpl implements SettingsService {
                         .orElseThrow(() -> new RuntimeException("Asset type not found"))
         );
 
-        // SensorType من الـ sensor repository
         var sensor = sensorRepository.findById(request.getSensorTypeId())
                 .orElseThrow(() -> new RuntimeException("Sensor not found"));
         threshold.setSensorType(sensor.getSensorType());
@@ -134,6 +140,7 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
+    @Transactional
     public SensorThresholdResponse updateSensorThreshold(Long id, UpdateSensorThresholdRequest request) {
         Threshold threshold = thresholdRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Threshold not found"));
@@ -150,6 +157,7 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
+    @Transactional
     public Map<String, Object> deleteSensorThreshold(Long id) {
         if (!thresholdRepository.existsById(id)) {
             throw new RuntimeException("Threshold not found");
@@ -177,6 +185,7 @@ public class SettingsServiceImpl implements SettingsService {
     // =========================================================================
 
     @Override
+    @Transactional(readOnly = true)
     public AIModelInfoResponse getAIModelInfo() {
         return aiModelInfoRepository.findAll()
                 .stream()
@@ -201,7 +210,6 @@ public class SettingsServiceImpl implements SettingsService {
 
     @Override
     public Map<String, Object> retrainAIModel() {
-        // Placeholder — في الـ real system هتبدأ training job
         return Map.of(
                 "success", true,
                 "message", "Retraining scheduled successfully",
@@ -211,7 +219,6 @@ public class SettingsServiceImpl implements SettingsService {
 
     @Override
     public Map<String, Object> scheduleTraining(Map<String, Object> data) {
-        // Placeholder — في الـ real system هتحفظ الـ schedule
         return Map.of(
                 "success", true,
                 "message", "Training scheduled",
