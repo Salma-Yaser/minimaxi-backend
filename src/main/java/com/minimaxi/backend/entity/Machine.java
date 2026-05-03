@@ -19,8 +19,8 @@ import java.time.LocalDate;
 @Table(name = "machine")
 public class Machine {
     @Id
-    @ColumnDefault("nextval('machine_id_seq')")
-    @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
     @Column(name = "asset_id", nullable = false, unique = true, length = 50)
