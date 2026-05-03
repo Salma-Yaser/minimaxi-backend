@@ -136,6 +136,7 @@ public class MachineServiceImpl implements MachineService {
         machine.setLocation(request.getLocation());
         machine.setSerialNumber(request.getSerialNumber());
         machine.setCreatedAt(Instant.now());
+        machine.setAssetId("MCH-TEMP-" + System.currentTimeMillis()); // ✅ مؤقت
 
         machine.setCriticality(
                 request.getCriticality() != null
@@ -150,6 +151,8 @@ public class MachineServiceImpl implements MachineService {
         }
 
         Machine saved = machineRepository.save(machine);
+
+        // ✅ تحديث الـ asset_id بالـ id الحقيقي
         saved.setAssetId("MCH-" + saved.getId());
         saved = machineRepository.save(saved);
 
