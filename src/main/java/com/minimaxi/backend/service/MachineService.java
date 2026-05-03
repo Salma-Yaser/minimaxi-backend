@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface MachineService {
 
-    List<MachineResponse> getAllMachines(String type, String location, String status, String search);
+    List<MachineResponse> getAllMachines(Long organizationId, String type, String location, String status, String search);
 
     MachineResponse getMachineById(Long id);
 

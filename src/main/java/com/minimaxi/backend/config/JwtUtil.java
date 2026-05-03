@@ -26,6 +26,19 @@ public class JwtUtil {
                 .compact();
     }
 
+    // NEW: overload with organizationId
+    public String generateToken(Long userId, String email, String role, Long organizationId) {
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("userId", userId)
+                .claim("role", role)
+                .claim("organizationId", organizationId)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -40,6 +53,10 @@ public class JwtUtil {
 
     public Long extractUserId(String token) {
         return extractClaims(token).get("userId", Long.class);
+    }
+
+    public Long extractOrganizationId(String token) {
+        return extractClaims(token).get("organizationId", Long.class);
     }
 
     public boolean isTokenValid(String token) {

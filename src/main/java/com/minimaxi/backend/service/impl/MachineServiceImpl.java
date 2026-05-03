@@ -47,12 +47,14 @@ public class MachineServiceImpl implements MachineService {
         this.organizationRepository = organizationRepository;
     }
 
-    // ─── GET ALL (مع filters) ────────────────────────────────────────────────
+    // ─── GET ALL (مع filters + organizationId) ───────────────────────────────
 
     @Override
-    public List<MachineResponse> getAllMachines(String type, String location, String status, String search) {
+    public List<MachineResponse> getAllMachines(Long organizationId, String type, String location, String status, String search) {
         return machineRepository.findAll()
                 .stream()
+                .filter(m -> organizationId == null ||
+                        (m.getOrganization() != null && m.getOrganization().getId().equals(organizationId)))
                 .filter(m -> type == null || type.isBlank() ||
                         (m.getMachineType() != null && m.getMachineType().equalsIgnoreCase(type)))
                 .filter(m -> location == null || location.isBlank() ||
@@ -147,10 +149,7 @@ public class MachineServiceImpl implements MachineService {
             machine.setInstallationDate(LocalDate.parse(request.getInstallationDate()));
         }
 
-        // Save أول مرة عشان نجيب الـ id
         Machine saved = machineRepository.save(machine);
-
-        // نعمل asset_id من الـ id
         saved.setAssetId("MCH-" + saved.getId());
         saved = machineRepository.save(saved);
 
@@ -204,19 +203,17 @@ public class MachineServiceImpl implements MachineService {
         Map<String, SensorHistoryResponse.SensorHistoryResponseBuilder> grouped = new LinkedHashMap<>();
 
         for (var r : readings) {
-            if (r.getReadingTime().isBefore((cutoffTime))) {
+            if (r.getReadingTime().isBefore(cutoffTime)) {
                 continue;
             }
 
             String timestamp = r.getReadingTime().toString();
-
-            grouped.putIfAbsent(timestamp,
-                    SensorHistoryResponse.builder().timestamp(timestamp));
+            grouped.putIfAbsent(timestamp, SensorHistoryResponse.builder().timestamp(timestamp));
 
             var builder = grouped.get(timestamp);
             String type = r.getSensor().getSensorType().getName().toLowerCase();
 
-            if ("temperature".equals(type))   builder.temperature(r.getValue());
+            if ("temperature".equals(type))    builder.temperature(r.getValue());
             else if ("vibration".equals(type)) builder.vibration(r.getValue());
             else if ("pressure".equals(type))  builder.pressure(r.getValue());
         }

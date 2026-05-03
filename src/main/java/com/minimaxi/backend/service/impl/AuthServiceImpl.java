@@ -32,7 +32,6 @@ public class AuthServiceImpl implements AuthService {
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-
     private final EmailService emailService;
 
     public AuthServiceImpl(
@@ -87,10 +86,12 @@ public class AuthServiceImpl implements AuthService {
         accessRequest.setReviewedAt(Instant.now());
         organizationRequestRepository.save(accessRequest);
 
+        // ✅ إضافة organizationId في الـ token
         String token = jwtUtil.generateToken(
                 savedUser.getId(),
                 savedUser.getEmail(),
-                savedUser.getRole().name()
+                savedUser.getRole().name(),
+                savedOrganization.getId()
         );
 
         return ActivateAccountResponse.builder()
@@ -121,10 +122,14 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Invalid email or password");
         }
 
+        Long organizationId = user.getOrganization() != null ? user.getOrganization().getId() : null;
+
+        // ✅ إضافة organizationId في الـ token
         String token = jwtUtil.generateToken(
                 user.getId(),
                 user.getEmail(),
-                user.getRole() != null ? user.getRole().name() : "USER"
+                user.getRole() != null ? user.getRole().name() : "USER",
+                organizationId
         );
 
         return LoginResponse.builder()
@@ -134,27 +139,25 @@ public class AuthServiceImpl implements AuthService {
                         .email(user.getEmail())
                         .role(user.getRole() != null ? user.getRole().name().toLowerCase() : null)
                         .firstLogin(false)
-                        .companyId(user.getOrganization() != null ? user.getOrganization().getId() : null)
+                        .companyId(organizationId)
                         .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                         .status(user.getStatus() != null ? user.getStatus().name().toLowerCase() : null)
                         .build())
                 .token(token)
                 .build();
     }
+
     @Override
     public Map<String, Object> forgotPassword(String email) {
         AppUser user = appUserRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("No account found with this email"));
 
-        // جنرت OTP 6 أرقام
         String otp = String.format("%06d", (int)(Math.random() * 1000000));
 
-        // حفظ الـ OTP في الـ DB مع expiry 15 دقيقة
         user.setResetOtp(otp);
         user.setResetOtpExpiresAt(Instant.now().plusSeconds(900));
         appUserRepository.save(user);
 
-        // بعت الإيميل
         emailService.sendOtpEmail(email, user.getFullName(), otp);
 
         return Map.of(
@@ -168,18 +171,15 @@ public class AuthServiceImpl implements AuthService {
         AppUser user = appUserRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("No account found with this email"));
 
-        // تحقق من الـ OTP
         if (user.getResetOtp() == null || !user.getResetOtp().equals(otp)) {
             throw new RuntimeException("Invalid OTP");
         }
 
-        // تحقق من الـ expiry
         if (user.getResetOtpExpiresAt() == null ||
                 Instant.now().isAfter(user.getResetOtpExpiresAt())) {
             throw new RuntimeException("OTP has expired");
         }
 
-        // حدّث الـ password
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setResetOtp(null);
         user.setResetOtpExpiresAt(null);
