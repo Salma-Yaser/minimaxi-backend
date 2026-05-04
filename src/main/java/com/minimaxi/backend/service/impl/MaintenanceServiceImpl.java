@@ -5,6 +5,7 @@ import com.minimaxi.backend.enums.WorkOrderPriority;
 import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.MaintenanceService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneOffset;
 import java.util.*;
@@ -20,6 +21,7 @@ public class MaintenanceServiceImpl implements MaintenanceService {
     }
 
     @Override
+    @Transactional
     public List<MaintenanceEventResponse> getMaintenanceEvents(int month, int year) {
         // بنجيب work orders اللي الـ due_date بتاعها في الـ month/year المطلوب
         var workOrders = workOrderRepository.findAll().stream()

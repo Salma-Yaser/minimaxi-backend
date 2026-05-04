@@ -6,6 +6,7 @@ import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.repository.PredictionRepository;
 import com.minimaxi.backend.service.ReportsService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -25,6 +26,7 @@ public class ReportsServiceImpl implements ReportsService {
     }
 
     @Override
+    @Transactional
     public ReportsResponse getReportsData() {
         var allWorkOrders = workOrderRepository.findAll();
 

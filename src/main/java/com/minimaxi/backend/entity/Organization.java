@@ -72,4 +72,6 @@ public class Organization {
 
     @Column(name = "reviewed_at")
     private Instant reviewedAt;
+
+
 }
