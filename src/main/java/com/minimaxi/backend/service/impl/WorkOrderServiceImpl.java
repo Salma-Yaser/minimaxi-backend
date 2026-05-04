@@ -16,6 +16,7 @@ import com.minimaxi.backend.repository.OrganizationRepository;
 import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.WorkOrderService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -45,9 +46,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         this.issueRepository = issueRepository;
     }
 
-    // ─── GET ALL (مع filters) ────────────────────────────────────────────────
-
     @Override
+    @Transactional(readOnly = true)
     public List<WorkOrderResponse> getAllWorkOrders(String status, String priority, Long assignedTo) {
         return workOrderRepository.findAll()
                 .stream()
@@ -61,18 +61,16 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                 .toList();
     }
 
-    // ─── GET BY ID ───────────────────────────────────────────────────────────
-
     @Override
+    @Transactional(readOnly = true)
     public WorkOrderResponse getWorkOrderById(Long id) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work order not found with id: " + id));
         return WorkOrderMapper.toResponse(workOrder);
     }
 
-    // ─── CREATE ──────────────────────────────────────────────────────────────
-
     @Override
+    @Transactional
     public WorkOrderResponse createWorkOrder(CreateWorkOrderRequest request) {
         WorkOrder workOrder = new WorkOrder();
 
@@ -121,9 +119,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         return WorkOrderMapper.toResponse(workOrderRepository.save(workOrder));
     }
 
-    // ─── UPDATE ──────────────────────────────────────────────────────────────
-
     @Override
+    @Transactional
     public WorkOrderResponse updateWorkOrder(Long id, UpdateWorkOrderRequest request) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work order not found with id: " + id));
@@ -139,7 +136,6 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         if (request.getStatus() != null) {
             WorkOrderStatus newStatus = WorkOrderStatus.valueOf(request.getStatus().toUpperCase());
             workOrder.setStatus(newStatus);
-            // لو اتغير لـ COMPLETED أو CLOSED، نسجل وقت الإغلاق
             if (newStatus == WorkOrderStatus.COMPLETED || newStatus == WorkOrderStatus.CLOSED) {
                 workOrder.setClosedAt(Instant.now());
             }
@@ -155,9 +151,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         return WorkOrderMapper.toResponse(workOrderRepository.save(workOrder));
     }
 
-    // ─── DELETE ──────────────────────────────────────────────────────────────
-
     @Override
+    @Transactional
     public void deleteWorkOrder(Long id) {
         if (!workOrderRepository.existsById(id)) {
             throw new RuntimeException("Work order not found with id: " + id);
@@ -165,14 +160,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         workOrderRepository.deleteById(id);
     }
 
-    // ─── ADD NOTE ────────────────────────────────────────────────────────────
-    // الـ schema مش عندها work_order_note table
-    // فبنرجع response مباشرة من غير ما نحفظ في DB
-    // لو احتجتي تحفظي النوتس، ضيفي table جديدة وعدلي هنا
-
     @Override
     public WorkOrderNoteResponse addWorkOrderNote(Long id, AddWorkOrderNoteRequest request) {
-        // تأكدي إن الـ work order موجود
         if (!workOrderRepository.existsById(id)) {
             throw new RuntimeException("Work order not found with id: " + id);
         }
