@@ -12,7 +12,9 @@ public class CompanySettingsResponse {
     private String logo;
     private String timezone;
     private String language;
-    private String service_type;
+
+    @JsonProperty("service_type")
+    private String serviceType;
 
     private String industry;
 
