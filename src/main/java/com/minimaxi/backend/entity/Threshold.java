@@ -15,7 +15,8 @@ import java.time.Instant;
 @Table(name = "threshold")
 public class Threshold {
     @Id
-    @ColumnDefault("nextval('threshold_id_seq')")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "threshold_seq")
+    @SequenceGenerator(name = "threshold_seq", sequenceName = "threshold_id_seq", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Long id;
 
