@@ -30,7 +30,6 @@ public class MaintenanceServiceImpl implements MaintenanceService {
                         && wo.getDueDate().getYear() == year)
                 .toList();
 
-        // بنعمل group بالـ date والـ type
         Map<String, Map<String, Long>> grouped = new LinkedHashMap<>();
 
         for (var wo : workOrders) {
