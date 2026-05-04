@@ -11,9 +11,6 @@ public class UpdateCompanySettingsRequest {
     private String logo;
     private String timezone;
     private String language;
-
-    @JsonProperty("service_type")
-    private String serviceType;
-
+    private String service_type;
     private String industry;
 }
