@@ -93,10 +93,10 @@ public class PredictionScheduler {
                 // حدّث الـ machine status
                 updateMachineStatus(machine, riskLevel);
 
-                System.out.println("✅ Prediction saved for machine: " + machine.getName());
+                System.out.println("Prediction saved for machine: " + machine.getName());
 
             } catch (Exception e) {
-                System.err.println("❌ Failed for machine " + machine.getName() + ": " + e.getMessage());
+                System.err.println("Failed for machine " + machine.getName() + ": " + e.getMessage());
             }
         }
     }
@@ -104,7 +104,7 @@ public class PredictionScheduler {
     private List<Double> buildSensorData(List<Sensor> sensors) {
         // بنجيب بس الـ sensors من id 4 لـ 24 بالترتيب
         return sensors.stream()
-                .filter(s -> s.getSensorType().getId() >= 4 && s.getSensorType().getId() <= 24)
+                .filter(s -> s.getSensorType().getId() >= 1 && s.getSensorType().getId() <= 21)
                 .sorted(Comparator.comparing(s -> s.getSensorType().getId()))
                 .map(s -> s.getCurrentValue() != null ? s.getCurrentValue().doubleValue() : 0.0)
                 .limit(21)
