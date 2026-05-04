@@ -5,6 +5,7 @@ import com.minimaxi.backend.entity.Notification;
 import com.minimaxi.backend.repository.NotificationRepository;
 import com.minimaxi.backend.service.AlertService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -46,6 +47,7 @@ public class AlertServiceImpl implements AlertService {
     // ─── GET ALL ─────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional
     public List<AlertResponse> getAlerts(String severity, Boolean acknowledged) {
         return notificationRepository.findAll()
                 .stream()
@@ -63,6 +65,7 @@ public class AlertServiceImpl implements AlertService {
     // ─── ACKNOWLEDGE ─────────────────────────────────────────────────────────
 
     @Override
+    @Transactional
     public AlertResponse acknowledgeAlert(Long id, String acknowledgedBy) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Alert not found with id: " + id));
