@@ -12,6 +12,7 @@ import com.minimaxi.backend.repository.AppUserRepository;
 import com.minimaxi.backend.repository.OrganizationRepository;
 import com.minimaxi.backend.service.UserService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,7 +30,6 @@ public class UserServiceImpl implements UserService {
         this.organizationRepository = organizationRepository;
     }
 
-    // ─── helper: entity → response ───────────────────────────────────────────
     private UserResponse toResponse(AppUser user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -44,28 +44,27 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-    // ─── GET ALL ─────────────────────────────────────────────────────────────
-
     @Override
-    public List<UserResponse> getUsers() {
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsers(Long organizationId) {
         return appUserRepository.findAll()
                 .stream()
+                .filter(u -> organizationId == null ||
+                        (u.getOrganization() != null && u.getOrganization().getId().equals(organizationId)))
                 .map(this::toResponse)
                 .toList();
     }
 
-    // ─── GET BY ID ───────────────────────────────────────────────────────────
-
     @Override
+    @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         AppUser user = appUserRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
         return toResponse(user);
     }
 
-    // ─── CREATE ──────────────────────────────────────────────────────────────
-
     @Override
+    @Transactional
     public UserResponse createUser(CreateUserRequest request) {
         AppUser user = new AppUser();
         user.setFullName(request.getName());
@@ -85,9 +84,8 @@ public class UserServiceImpl implements UserService {
         return toResponse(appUserRepository.save(user));
     }
 
-    // ─── UPDATE ──────────────────────────────────────────────────────────────
-
     @Override
+    @Transactional
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
         AppUser user = appUserRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
@@ -100,17 +98,8 @@ public class UserServiceImpl implements UserService {
         return toResponse(appUserRepository.save(user));
     }
 
-    // ─── DELETE ──────────────────────────────────────────────────────────────
-/*
     @Override
-    public Map<String, Object> deleteUser(Long id) {
-        if (!appUserRepository.existsById(id)) {
-            throw new RuntimeException("User not found with id: " + id);
-        }
-        appUserRepository.deleteById(id);
-        return Map.of("success", true);
-    }*/
-    @Override
+    @Transactional
     public Map<String, Object> deleteUser(Long id) {
         AppUser user = appUserRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
@@ -119,11 +108,8 @@ public class UserServiceImpl implements UserService {
         return Map.of("success", true);
     }
 
-    // ─── INVITE ──────────────────────────────────────────────────────────────
-    // بيعمل نفس الـ createUser بس بـ status INVITED
-    // في الـ real flow هتبعتي email، دلوقتي بنحفظ في DB بس
-
     @Override
+    @Transactional
     public UserResponse inviteUser(InviteUserRequest request) {
         AppUser user = new AppUser();
         user.setFullName(request.getName());
@@ -142,16 +128,12 @@ public class UserServiceImpl implements UserService {
         return toResponse(appUserRepository.save(user));
     }
 
-    // ─── UPDATE AVATAR ───────────────────────────────────────────────────────
-    // بيحفظ الـ base64 image في الـ avatar column
-
     @Override
+    @Transactional
     public UserResponse updateAvatar(Long id, UpdateAvatarRequest request) {
         AppUser user = appUserRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
-
         user.setAvatar(request.getAvatar());
-
         return toResponse(appUserRepository.save(user));
     }
 }

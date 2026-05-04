@@ -11,7 +11,7 @@ import java.util.Map;
 
 public interface UserService {
 
-    List<UserResponse> getUsers();
+    List<UserResponse> getUsers(Long organizationId);
 
     UserResponse getUserById(Long id);
 
