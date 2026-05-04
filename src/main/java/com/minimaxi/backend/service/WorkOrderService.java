@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface WorkOrderService {
 
-    List<WorkOrderResponse> getAllWorkOrders(String status, String priority, Long assignedTo);
+    List<WorkOrderResponse> getAllWorkOrders(Long organizationId, String status, String priority, Long assignedTo);
 
     WorkOrderResponse getWorkOrderById(Long id);
 

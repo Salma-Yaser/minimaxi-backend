@@ -1,11 +1,13 @@
 package com.minimaxi.backend.controller;
 
+import com.minimaxi.backend.config.JwtUtil;
 import com.minimaxi.backend.dto.request.AddWorkOrderNoteRequest;
 import com.minimaxi.backend.dto.request.CreateWorkOrderRequest;
 import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
 import com.minimaxi.backend.service.WorkOrderService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,22 +15,34 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/work-orders")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class WorkOrderController {
 
     private final WorkOrderService workOrderService;
+    private final JwtUtil jwtUtil;
 
-    public WorkOrderController(WorkOrderService workOrderService) {
+    public WorkOrderController(WorkOrderService workOrderService, JwtUtil jwtUtil) {
         this.workOrderService = workOrderService;
+        this.jwtUtil = jwtUtil;
+    }
+
+    private Long extractOrgId(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return jwtUtil.extractOrganizationId(authHeader.substring(7));
+        }
+        return null;
     }
 
     @GetMapping
     public List<WorkOrderResponse> getAllWorkOrders(
+            HttpServletRequest request,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long assigned_to
     ) {
-        return workOrderService.getAllWorkOrders(status, priority, assigned_to);
+        Long orgId = extractOrgId(request);
+        return workOrderService.getAllWorkOrders(orgId, status, priority, assigned_to);
     }
 
     @GetMapping("/{id}")

@@ -48,9 +48,11 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkOrderResponse> getAllWorkOrders(String status, String priority, Long assignedTo) {
+    public List<WorkOrderResponse> getAllWorkOrders(Long organizationId, String status, String priority, Long assignedTo) {
         return workOrderRepository.findAll()
                 .stream()
+                .filter(wo -> organizationId == null ||
+                        (wo.getOrganization() != null && wo.getOrganization().getId().equals(organizationId)))
                 .filter(wo -> status == null || status.isBlank() ||
                         wo.getStatus().name().equalsIgnoreCase(status))
                 .filter(wo -> priority == null || priority.isBlank() ||
