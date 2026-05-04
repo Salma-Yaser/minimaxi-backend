@@ -8,6 +8,7 @@ import com.minimaxi.backend.enums.WorkOrderStatus;
 import com.minimaxi.backend.repository.*;
 import com.minimaxi.backend.service.DashboardService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -39,6 +40,7 @@ public class DashboardServiceImpl implements DashboardService {
     // ─── STATS ───────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public DashboardStatsResponse getStats() {
         var machines = machineRepository.findAll();
 
@@ -47,13 +49,11 @@ public class DashboardServiceImpl implements DashboardService {
         long warning  = machines.stream().filter(m -> m.getStatus() == MachineStatus.WARNING).count();
         long critical = machines.stream().filter(m -> m.getStatus() == MachineStatus.CRITICAL).count();
 
-        // Active work orders = كل اللي مش COMPLETED أو CLOSED
         long activeWO = workOrderRepository.findAll().stream()
                 .filter(wo -> wo.getStatus() != WorkOrderStatus.COMPLETED
                         && wo.getStatus() != WorkOrderStatus.CLOSED)
                 .count();
 
-        // Predicted failures = machines عندها prediction بـ severity HIGH أو CRITICAL
         long predictedFailures = predictionRepository.findAll().stream()
                 .filter(p -> p.getSeverity() == PredictionSeverity.HIGH
                         || p.getSeverity() == PredictionSeverity.CRITICAL)
@@ -61,7 +61,6 @@ public class DashboardServiceImpl implements DashboardService {
                 .distinct()
                 .count();
 
-        // Uptime = نسبة الـ HEALTHY + WARNING من الكل
         double uptime = total > 0
                 ? Math.round(((double)(total - critical) / total) * 1000.0) / 10.0
                 : 100.0;
@@ -70,14 +69,15 @@ public class DashboardServiceImpl implements DashboardService {
                 total, healthy, warning, critical,
                 activeWO, predictedFailures,
                 uptime,
-                720.0,  // MTBF — placeholder, يحتاج حسابات تاريخية
-                4.2     // MTTR — placeholder
+                720.0,
+                4.2
         );
     }
 
     // ─── HEALTH DISTRIBUTION ─────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public List<HealthDistributionResponse> getHealthDistribution() {
         var machines = machineRepository.findAll();
 
@@ -98,8 +98,8 @@ public class DashboardServiceImpl implements DashboardService {
     // ─── FAILURE TREND ───────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public List<FailureTrendResponse> getFailureTrend(String period) {
-        // بنجيب الـ predictions من الـ DB ونحسب average failure probability per period
         var predictions = predictionRepository.findAll();
 
         if (predictions.isEmpty()) {
@@ -120,7 +120,6 @@ public class DashboardServiceImpl implements DashboardService {
                     .add(p.getFailureProbability().doubleValue());
         }
 
-        // لو مفيش data كافية، نرجع default
         if (grouped.isEmpty()) return getDefaultFailureTrend(period);
 
         List<FailureTrendResponse> result = new ArrayList<>();
@@ -140,11 +139,10 @@ public class DashboardServiceImpl implements DashboardService {
             case "daily"  -> DateTimeFormatter.ofPattern("MMM dd");
             case "weekly" -> DateTimeFormatter.ofPattern("'Week' w");
             case "yearly" -> DateTimeFormatter.ofPattern("yyyy");
-            default       -> DateTimeFormatter.ofPattern("MMM yy");  // monthly
+            default       -> DateTimeFormatter.ofPattern("MMM yy");
         };
     }
 
-    // Default data لو الـ DB فاضية
     private List<FailureTrendResponse> getDefaultFailureTrend(String period) {
         return List.of(
                 new FailureTrendResponse("Jan 26", 10.0),
@@ -155,15 +153,14 @@ public class DashboardServiceImpl implements DashboardService {
     // ─── SENSOR TRENDS ───────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public List<SensorTrendResponse> getSensorTrends() {
-        // بنجيب آخر 7 readings من كل sensor type ونعمل group بالـ timestamp
         var readings = sensorReadingRepository.findAll();
 
         if (readings.isEmpty()) {
             return getDefaultSensorTrends();
         }
 
-        // Group by hour
         Map<String, SensorTrendBuilder> grouped = new LinkedHashMap<>();
         DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -211,6 +208,7 @@ public class DashboardServiceImpl implements DashboardService {
     // ─── AI INSIGHTS ─────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public List<AIInsightResponse> getAIInsights() {
         return predictionRepository.findAll().stream()
                 .sorted(Comparator.comparing(p -> ((Prediction) p).getPredictedAt()).reversed())
