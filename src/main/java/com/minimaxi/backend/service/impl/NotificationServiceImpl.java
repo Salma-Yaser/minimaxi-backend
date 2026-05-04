@@ -6,6 +6,7 @@ import com.minimaxi.backend.mapper.NotificationMapper;
 import com.minimaxi.backend.repository.NotificationRepository;
 import com.minimaxi.backend.service.NotificationService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional
     public List<NotificationResponse> getNotifications(Long userId) {
         return notificationRepository.findByRecipientUserIdOrderByCreatedAtDesc(userId)
                 .stream()
@@ -27,6 +29,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional
     public NotificationResponse markNotificationRead(Long id) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Notification not found with id: " + id));
@@ -38,6 +41,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional
     public void markAllNotificationsRead(Long userId) {
         List<Notification> notifications = notificationRepository.findByRecipientUserIdOrderByCreatedAtDesc(userId);
 

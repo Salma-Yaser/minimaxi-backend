@@ -23,12 +23,12 @@ public class NotificationController {
         return notificationService.getNotifications(userId);
     }
 
-    @PostMapping("/{id}/read")
+    @PutMapping("/{id}/read")
     public NotificationResponse markNotificationRead(@PathVariable Long id) {
         return notificationService.markNotificationRead(id);
     }
 
-    @PostMapping("/read-all")
+    @PutMapping("/read-all")
     public Map<String, Object> markAllNotificationsRead(@RequestParam("userId") Long userId) {
         notificationService.markAllNotificationsRead(userId);
         return Map.of("success", true);
