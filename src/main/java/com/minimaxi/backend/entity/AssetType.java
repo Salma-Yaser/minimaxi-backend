@@ -15,8 +15,8 @@ import java.time.Instant;
 @Table(name = "asset_type")
 public class AssetType {
     @Id
-    @ColumnDefault("nextval('asset_type_id_seq')")
-    @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
     @NotNull
