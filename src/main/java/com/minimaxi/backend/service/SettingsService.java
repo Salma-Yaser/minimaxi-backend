@@ -20,6 +20,9 @@ public interface SettingsService {
     SensorThresholdResponse updateSensorThreshold(Long id, UpdateSensorThresholdRequest request);
     Map<String, Object> deleteSensorThreshold(Long id);
 
+    List<SensorTypeResponse> getSensorTypes();
+
+
     // ─── AI Model ────────────────────────────────────────────────────────────
     AIModelInfoResponse getAIModelInfo();
     Map<String, Object> retrainAIModel();

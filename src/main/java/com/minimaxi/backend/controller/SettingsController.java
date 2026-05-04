@@ -56,6 +56,13 @@ public class SettingsController {
         return settingsService.getSensorThresholds();
     }
 
+
+    // Frontend calls: GET /api/settings/sensor-types  ✅
+    @GetMapping("/sensor-types")
+    public List<SensorTypeResponse> getSensorTypes() {
+        return settingsService.getSensorTypes();
+    }
+
     // Frontend calls: POST /api/settings/sensor-thresholds  ✅
     @PostMapping("/sensor-thresholds")
     public SensorThresholdResponse createSensorThreshold(

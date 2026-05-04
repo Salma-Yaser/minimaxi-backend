@@ -21,20 +21,20 @@ public class SettingsServiceImpl implements SettingsService {
     private final ThresholdRepository thresholdRepository;
     private final AiModelInfoRepository aiModelInfoRepository;
     private final OrganizationRepository organizationRepository;
-    private final SensorRepository sensorRepository;
+    private final SensorTypeRepository sensorTypeRepository; // ✅ بدل SensorRepository
     private final AppUserRepository appUserRepository;
 
     public SettingsServiceImpl(AssetTypeRepository assetTypeRepository,
                                ThresholdRepository thresholdRepository,
                                AiModelInfoRepository aiModelInfoRepository,
                                OrganizationRepository organizationRepository,
-                               SensorRepository sensorRepository,
+                               SensorTypeRepository sensorTypeRepository, // ✅
                                AppUserRepository appUserRepository) {
         this.assetTypeRepository = assetTypeRepository;
         this.thresholdRepository = thresholdRepository;
         this.aiModelInfoRepository = aiModelInfoRepository;
         this.organizationRepository = organizationRepository;
-        this.sensorRepository = sensorRepository;
+        this.sensorTypeRepository = sensorTypeRepository; // ✅
         this.appUserRepository = appUserRepository;
     }
 
@@ -98,6 +98,19 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     // =========================================================================
+    // SENSOR TYPES
+    // =========================================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SensorTypeResponse> getSensorTypes() {
+        return sensorTypeRepository.findAll()
+                .stream()
+                .map(s -> new SensorTypeResponse(s.getId(), s.getName(), s.getUnit()))
+                .toList();
+    }
+
+    // =========================================================================
     // SENSOR THRESHOLDS
     // =========================================================================
 
@@ -123,11 +136,11 @@ public class SettingsServiceImpl implements SettingsService {
                 assetTypeRepository.findById(request.getAssetTypeId())
                         .orElseThrow(() -> new RuntimeException("Asset type not found"))
         );
-
-        var sensor = sensorRepository.findById(request.getSensorTypeId())
-                .orElseThrow(() -> new RuntimeException("Sensor not found"));
-        threshold.setSensorType(sensor.getSensorType());
-
+        // ✅ الصح: بندور في sensor_type مش sensors
+        threshold.setSensorType(
+                sensorTypeRepository.findById(request.getSensorTypeId())
+                        .orElseThrow(() -> new RuntimeException("Sensor type not found"))
+        );
         threshold.setWarningValue(BigDecimal.valueOf(request.getWarningValue()));
         threshold.setCriticalValue(BigDecimal.valueOf(request.getCriticalValue()));
         threshold.setUpdatedAt(Instant.now());
