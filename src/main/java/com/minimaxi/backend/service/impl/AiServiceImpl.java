@@ -10,6 +10,8 @@ import com.minimaxi.backend.repository.MachineRepository;
 import com.minimaxi.backend.repository.SensorReadingRepository;
 import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.AiService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,8 @@ import java.util.List;
 
 @Service
 public class AiServiceImpl implements AiService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AiServiceImpl.class);
 
     @Value("${groq.api.key}")
     private String groqApiKey;
@@ -40,11 +44,15 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public AskResponse ask(AskRequest request) {
+        if (groqApiKey == null || groqApiKey.trim().isEmpty()) {
+            throw new RuntimeException("Groq API key not configured");
+        }
         try {
             String context = buildContext(request);
             String reply = callGroq(request.getMessage(), context);
             return new AskResponse(reply);
         } catch (Exception e) {
+            logger.error("Error in AI service", e);
             throw new RuntimeException("AI service temporarily unavailable");
         }
     }
