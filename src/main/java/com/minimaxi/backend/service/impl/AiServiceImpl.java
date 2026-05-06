@@ -4,14 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minimaxi.backend.dto.request.AskRequest;
 import com.minimaxi.backend.dto.response.AskResponse;
-import com.minimaxi.backend.entity.Machine;
-import com.minimaxi.backend.entity.WorkOrder;
 import com.minimaxi.backend.repository.MachineRepository;
-import com.minimaxi.backend.repository.SensorReadingRepository;
 import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.AiService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,22 +19,18 @@ import java.util.List;
 @Service
 public class AiServiceImpl implements AiService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AiServiceImpl.class);
-
     @Value("${groq.api.key}")
     private String groqApiKey;
 
     private final MachineRepository machineRepository;
     private final WorkOrderRepository workOrderRepository;
-    private final SensorReadingRepository sensorReadingRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AiServiceImpl(MachineRepository machineRepository,
-                         WorkOrderRepository workOrderRepository,
-                         SensorReadingRepository sensorReadingRepository) {
+                         WorkOrderRepository workOrderRepository ) {
         this.machineRepository = machineRepository;
         this.workOrderRepository = workOrderRepository;
-        this.sensorReadingRepository = sensorReadingRepository;
+
     }
 
     @Override
