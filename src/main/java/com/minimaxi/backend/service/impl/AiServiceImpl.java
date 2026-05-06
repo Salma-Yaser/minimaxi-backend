@@ -52,15 +52,14 @@ public class AiServiceImpl implements AiService {
             String reply = callGroq(request.getMessage(), context);
             return new AskResponse(reply);
         } catch (Exception e) {
-            logger.error("Error in AI service", e);
-            throw new RuntimeException("AI service temporarily unavailable");
+            e.printStackTrace();
+            throw new RuntimeException("AI service temporarily unavailable: " + e.getMessage());
         }
     }
 
     private String buildContext(AskRequest request) {
         StringBuilder ctx = new StringBuilder();
 
-        // Machine context
         if (request.getMachineId() != null) {
             machineRepository.findById(request.getMachineId()).ifPresent(machine -> {
                 ctx.append("Machine: ").append(machine.getName())
@@ -69,23 +68,9 @@ public class AiServiceImpl implements AiService {
                         .append(" | Status: ").append(machine.getStatus())
                         .append(" | Criticality: ").append(machine.getCriticality())
                         .append("\n");
-
-                // Latest sensor readings
-                var readings = sensorReadingRepository
-                        .findBySensorMachineIdOrderByReadingTimeDesc(machine.getId());
-                if (!readings.isEmpty()) {
-                    ctx.append("Latest Sensor Readings:\n");
-                    readings.stream().limit(5).forEach(r ->
-                            ctx.append("  - ").append(r.getSensor().getSensorType().getName())
-                                    .append(": ").append(r.getValue())
-                                    .append(" ").append(r.getSensor().getSensorType().getUnit())
-                                    .append("\n")
-                    );
-                }
             });
         }
 
-        // Work order context
         if (request.getWorkOrderId() != null) {
             workOrderRepository.findById(request.getWorkOrderId()).ifPresent(wo -> {
                 ctx.append("Work Order: ").append(wo.getTitle())
