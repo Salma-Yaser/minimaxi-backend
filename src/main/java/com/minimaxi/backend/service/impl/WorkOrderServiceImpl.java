@@ -17,6 +17,12 @@ import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.WorkOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.minimaxi.backend.dto.request.CompleteWorkOrderRequest;
+import com.minimaxi.backend.entity.WorkOrderCompletion;
+import com.minimaxi.backend.repository.WorkOrderCompletionRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -31,19 +37,24 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     private final MachineRepository machineRepository;
     private final AppUserRepository appUserRepository;
     private final IssueRepository issueRepository;
+    private final WorkOrderCompletionRepository workOrderCompletionRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     public WorkOrderServiceImpl(
             WorkOrderRepository workOrderRepository,
             OrganizationRepository organizationRepository,
             MachineRepository machineRepository,
             AppUserRepository appUserRepository,
-            IssueRepository issueRepository
+            IssueRepository issueRepository,
+            WorkOrderCompletionRepository workOrderCompletionRepository
     ) {
         this.workOrderRepository = workOrderRepository;
         this.organizationRepository = organizationRepository;
         this.machineRepository = machineRepository;
         this.appUserRepository = appUserRepository;
         this.issueRepository = issueRepository;
+        this.workOrderCompletionRepository = workOrderCompletionRepository;
     }
 
     @Override
@@ -175,4 +186,47 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                 Instant.now().toString()
         );
     }
+
+    @Override
+    @Transactional
+    public void completeWorkOrder(Long workOrderId, CompleteWorkOrderRequest request) {
+        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
+                .orElseThrow(() -> new RuntimeException("Work order not found with id: " + workOrderId));
+
+        // حساب total minutes
+        int totalMinutes = 0;
+        if (request.getHoursSpent() != null) totalMinutes += request.getHoursSpent() * 60;
+        if (request.getMinutesSpent() != null) totalMinutes += request.getMinutesSpent();
+
+        // spare parts as JSON string
+        String sparePartsJson = "[]";
+        if (request.getSpareParts() != null && !request.getSpareParts().isEmpty()) {
+            try {
+                sparePartsJson = objectMapper.writeValueAsString(request.getSpareParts());
+            } catch (Exception e) {
+                sparePartsJson = "[]";
+            }
+        }
+
+        // إنشاء الـ completion record
+        WorkOrderCompletion completion = new WorkOrderCompletion();
+        completion.setWorkOrder(workOrder);
+        completion.setCompletedByUser(
+                appUserRepository.findById(request.getCompletedByUserId())
+                        .orElseThrow(() -> new RuntimeException("User not found"))
+        );
+        completion.setActionTaken(request.getActionTaken());
+        completion.setRootCause(request.getRootCause());
+        completion.setTimeSpentMinutes(totalMinutes);
+        completion.setAdditionalNotes(request.getAdditionalNotes());
+        completion.setCompletedAt(Instant.now());
+        workOrderCompletionRepository.save(completion);
+
+        // تحديث الـ work order status
+        workOrder.setStatus(WorkOrderStatus.COMPLETED);
+        workOrder.setClosedAt(Instant.now());
+        workOrderRepository.save(workOrder);
+    }
+
+
 }

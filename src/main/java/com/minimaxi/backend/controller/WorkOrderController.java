@@ -2,6 +2,7 @@ package com.minimaxi.backend.controller;
 
 import com.minimaxi.backend.config.JwtUtil;
 import com.minimaxi.backend.dto.request.AddWorkOrderNoteRequest;
+import com.minimaxi.backend.dto.request.CompleteWorkOrderRequest;
 import com.minimaxi.backend.dto.request.CreateWorkOrderRequest;
 import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
@@ -76,4 +77,14 @@ public class WorkOrderController {
     ) {
         return workOrderService.addWorkOrderNote(id, request);
     }
+
+    @PostMapping("/{id}/complete")
+    public Map<String, Object> completeWorkOrder(
+            @PathVariable Long id,
+            @RequestBody CompleteWorkOrderRequest request
+    ) {
+        workOrderService.completeWorkOrder(id, request);
+        return Map.of("success", true, "message", "Work order " + id + " marked as completed.");
+    }
+
 }

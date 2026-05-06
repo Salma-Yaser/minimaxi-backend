@@ -14,8 +14,9 @@ import java.time.Instant;
 @Entity
 @Table(name = "work_order_completion")
 public class WorkOrderCompletion {
+
     @Id
-    @ColumnDefault("nextval('work_order_completion_id_seq')")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
@@ -44,9 +45,17 @@ public class WorkOrderCompletion {
     @Column(name = "additional_notes", length = Integer.MAX_VALUE)
     private String additionalNotes;
 
+    @Column(name = "spare_parts", length = Integer.MAX_VALUE)
+    private String spareParts;
+
+    public String getSpareParts() { return spareParts; }
+    public void setSpareParts(String spareParts) { this.spareParts = spareParts; }
+
     @NotNull
     @ColumnDefault("now()")
     @Column(name = "completed_at", nullable = false)
     private Instant completedAt;
+
+
 
 }
