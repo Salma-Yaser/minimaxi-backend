@@ -48,6 +48,8 @@ public class MachineServiceImpl implements MachineService {
         this.organizationRepository = organizationRepository;
     }
 
+    // ✅ FIX: بدل MachineMapper::toResponse، بنكال getMachineById
+    // عشان يجيب sensors + prediction حقيقية لكل machine في الـ list
     @Transactional(readOnly = true)
     @Override
     public List<MachineResponse> getAllMachines(Long organizationId, String type, String location, String status, String search) {
@@ -64,7 +66,7 @@ public class MachineServiceImpl implements MachineService {
                 .filter(m -> search == null || search.isBlank() ||
                         m.getName().toLowerCase().contains(search.toLowerCase()) ||
                         (m.getAssetId() != null && m.getAssetId().toLowerCase().contains(search.toLowerCase())))
-                .map(MachineMapper::toResponse)
+                .map(m -> getMachineById(m.getId()))   // ← الـ fix الوحيد هنا
                 .toList();
     }
 
@@ -74,14 +76,17 @@ public class MachineServiceImpl implements MachineService {
         Machine machine = machineRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Machine not found"));
 
+        // جيب الـ sensors الحالية وحوّلها لـ map { type_name → value }
         var sensors = sensorRepository.findByMachineId(id)
                 .stream()
                 .filter(s -> s.getSensorType() != null)
                 .collect(Collectors.toMap(
                         s -> s.getSensorType().getName().toLowerCase(),
-                        s -> s.getCurrentValue() != null ? s.getCurrentValue().doubleValue() : 0.0
+                        s -> s.getCurrentValue() != null ? s.getCurrentValue().doubleValue() : 0.0,
+                        (existing, replacement) -> existing  // لو في duplicate key خد الأول
                 ));
 
+        // جيب أحدث prediction
         var predictionOpt = predictionRepository.findTopByMachineIdOrderByPredictedAtDesc(id);
 
         MachinePredictionResponse prediction = predictionOpt.map(p ->
@@ -201,7 +206,6 @@ public class MachineServiceImpl implements MachineService {
                 continue;
             }
 
-            // ✅ null check
             if (r.getSensor() == null || r.getSensor().getSensorType() == null) {
                 continue;
             }
