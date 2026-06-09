@@ -3,7 +3,6 @@ package com.minimaxi.backend.controller;
 import com.minimaxi.backend.dto.response.*;
 import com.minimaxi.backend.service.DashboardService;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
