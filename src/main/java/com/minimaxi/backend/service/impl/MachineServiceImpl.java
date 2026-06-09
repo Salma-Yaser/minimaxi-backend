@@ -76,6 +76,7 @@ public class MachineServiceImpl implements MachineService {
 
         var sensors = sensorRepository.findByMachineId(id)
                 .stream()
+                .filter(s -> s.getSensorType() != null)
                 .collect(Collectors.toMap(
                         s -> s.getSensorType().getName().toLowerCase(),
                         s -> s.getCurrentValue() != null ? s.getCurrentValue().doubleValue() : 0.0
@@ -200,7 +201,7 @@ public class MachineServiceImpl implements MachineService {
                 continue;
             }
 
-            //  null check
+            // ✅ null check
             if (r.getSensor() == null || r.getSensor().getSensorType() == null) {
                 continue;
             }

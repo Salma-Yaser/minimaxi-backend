@@ -9,7 +9,6 @@ import org.hibernate.annotations.ColumnDefault;
 import com.minimaxi.backend.enums.WorkOrderPriority;
 import com.minimaxi.backend.enums.WorkOrderStatus;
 
-
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -18,7 +17,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "work_order")
 public class WorkOrder {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,7 +30,7 @@ public class WorkOrder {
     private Organization organization;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "machine_id", nullable = false)
     private Machine machine;
 
@@ -41,11 +39,11 @@ public class WorkOrder {
     private Issue issue;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private AppUser createdByUser;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "assigned_to_user_id")
     private AppUser assignedToUser;
 
@@ -59,17 +57,17 @@ public class WorkOrder {
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
+
     @NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-
-
     @NotNull
     @ColumnDefault("false")
     @Column(name = "ai_suggested", nullable = false)
     private Boolean aiSuggested = false;
+
     @Column(name = "closed_at")
     private Instant closedAt;
 

@@ -37,8 +37,6 @@ public class DashboardServiceImpl implements DashboardService {
         this.sensorRepository = sensorRepository;
     }
 
-    // ─── STATS ───────────────────────────────────────────────────────────────
-
     @Override
     @Transactional(readOnly = true)
     public DashboardStatsResponse getStats() {
@@ -74,8 +72,6 @@ public class DashboardServiceImpl implements DashboardService {
         );
     }
 
-    // ─── HEALTH DISTRIBUTION ─────────────────────────────────────────────────
-
     @Override
     @Transactional(readOnly = true)
     public List<HealthDistributionResponse> getHealthDistribution() {
@@ -94,8 +90,6 @@ public class DashboardServiceImpl implements DashboardService {
 
         return result;
     }
-
-    // ─── FAILURE TREND ───────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
@@ -150,8 +144,6 @@ public class DashboardServiceImpl implements DashboardService {
         );
     }
 
-    // ─── SENSOR TRENDS ───────────────────────────────────────────────────────
-
     @Override
     @Transactional(readOnly = true)
     public List<SensorTrendResponse> getSensorTrends() {
@@ -166,6 +158,9 @@ public class DashboardServiceImpl implements DashboardService {
 
         for (var r : readings) {
             if (r.getReadingTime() == null) continue;
+
+            // ✅ null check
+            if (r.getSensor() == null || r.getSensor().getSensorType() == null) continue;
 
             String timeKey = r.getReadingTime()
                     .atZone(java.time.ZoneOffset.UTC)
@@ -205,12 +200,11 @@ public class DashboardServiceImpl implements DashboardService {
         );
     }
 
-    // ─── AI INSIGHTS ─────────────────────────────────────────────────────────
-
     @Override
     @Transactional(readOnly = true)
     public List<AIInsightResponse> getAIInsights() {
         return predictionRepository.findAll().stream()
+                .filter(p -> p.getMachine() != null)
                 .sorted(Comparator.comparing(p -> ((Prediction) p).getPredictedAt()).reversed())
                 .limit(5)
                 .map(p -> new AIInsightResponse(
