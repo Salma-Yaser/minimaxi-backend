@@ -50,10 +50,21 @@ public class OrganizationRequestServiceImpl implements OrganizationRequestServic
                         ? RequestedService.valueOf(request.getRequestedService().toUpperCase())
                         : RequestedService.BOTH
         );
-        entity.setStatus(RequestStatus.PENDING);
+
+        // ✅ auto-approve مباشرة
+        entity.setStatus(RequestStatus.APPROVED);
         entity.setCreatedAt(Instant.now());
+        entity.setReviewedAt(Instant.now());
 
         OrganizationRequest saved = organizationRequestRepository.save(entity);
+
+        // ✅ بعت activation email تلقائياً
+        emailService.sendActivationEmail(
+                saved.getEmail(),
+                saved.getContactPersonName(),
+                saved.getId()
+        );
+
         return OrganizationRequestMapper.toResponse(saved);
     }
 
@@ -70,7 +81,6 @@ public class OrganizationRequestServiceImpl implements OrganizationRequestServic
         request.setReviewedAt(Instant.now());
         organizationRequestRepository.save(request);
 
-        // بعت الإيميل
         emailService.sendActivationEmail(
                 request.getEmail(),
                 request.getContactPersonName(),
