@@ -100,8 +100,17 @@ public class DashboardServiceImpl implements DashboardService {
             return getDefaultFailureTrend(period);
         }
 
-        Map<String, List<Double>> grouped = new LinkedHashMap<>();
-        DateTimeFormatter formatter = getFormatterForPeriod(period);
+        String normalizedPeriod = period == null ? "monthly" : period.toLowerCase();
+
+        DateTimeFormatter formatter = getFormatterForPeriod(normalizedPeriod);
+
+        Map<String, List<Double>> grouped = new TreeMap<>((a, b) -> {
+            try {
+                return getSortKey(a, normalizedPeriod).compareTo(getSortKey(b, normalizedPeriod));
+            } catch (Exception e) {
+                return a.compareTo(b);
+            }
+        });
 
         for (var p : predictions) {
             if (p.getPredictedAt() == null || p.getFailureProbability() == null) continue;
@@ -114,18 +123,51 @@ public class DashboardServiceImpl implements DashboardService {
                     .add(p.getFailureProbability().doubleValue());
         }
 
-        if (grouped.isEmpty()) return getDefaultFailureTrend(period);
+        if (grouped.isEmpty()) return getDefaultFailureTrend(normalizedPeriod);
 
         List<FailureTrendResponse> result = new ArrayList<>();
+
         for (var entry : grouped.entrySet()) {
             double avg = entry.getValue().stream()
                     .mapToDouble(Double::doubleValue)
                     .average()
                     .orElse(0.0);
-            result.add(new FailureTrendResponse(entry.getKey(), Math.round(avg * 10.0) / 10.0));
+
+            result.add(new FailureTrendResponse(
+                    entry.getKey(),
+                    Math.round(avg * 10.0) / 10.0
+            ));
         }
 
         return result;
+    }
+
+    private String getSortKey(String label, String period) {
+        return switch (period) {
+            case "yearly" -> label; // 2025, 2026
+            case "monthly" -> {
+                java.time.YearMonth ym = java.time.YearMonth.parse(
+                        label,
+                        DateTimeFormatter.ofPattern("MMM yy", java.util.Locale.ENGLISH)
+                );
+                yield ym.toString(); // 2025-12, 2026-01
+            }
+            case "daily" -> {
+                // daily label is like "Jun 09"; assume current year
+                int currentYear = java.time.Year.now().getValue();
+                java.time.MonthDay md = java.time.MonthDay.parse(
+                        label,
+                        DateTimeFormatter.ofPattern("MMM dd", java.util.Locale.ENGLISH)
+                );
+                yield currentYear + "-" + String.format("%02d-%02d", md.getMonthValue(), md.getDayOfMonth());
+            }
+            case "weekly" -> {
+                // label is like "Week 23"
+                String weekNumber = label.replace("Week", "").trim();
+                yield String.format("%02d", Integer.parseInt(weekNumber));
+            }
+            default -> label;
+        };
     }
 
     private DateTimeFormatter getFormatterForPeriod(String period) {
