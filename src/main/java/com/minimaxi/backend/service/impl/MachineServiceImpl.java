@@ -16,6 +16,7 @@ import com.minimaxi.backend.repository.SensorReadingRepository;
 import com.minimaxi.backend.repository.SensorRepository;
 import com.minimaxi.backend.service.MachineService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -47,8 +48,7 @@ public class MachineServiceImpl implements MachineService {
         this.organizationRepository = organizationRepository;
     }
 
-    // ─── GET ALL (مع filters + organizationId) ───────────────────────────────
-
+    @Transactional(readOnly = true)
     @Override
     public List<MachineResponse> getAllMachines(Long organizationId, String type, String location, String status, String search) {
         return machineRepository.findAll()
@@ -68,8 +68,7 @@ public class MachineServiceImpl implements MachineService {
                 .toList();
     }
 
-    // ─── GET BY ID ───────────────────────────────────────────────────────────
-
+    @Transactional(readOnly = true)
     @Override
     public MachineResponse getMachineById(Long id) {
         Machine machine = machineRepository.findById(id)
@@ -120,8 +119,6 @@ public class MachineServiceImpl implements MachineService {
                 .build();
     }
 
-    // ─── CREATE ──────────────────────────────────────────────────────────────
-
     @Override
     public MachineResponse createMachine(CreateMachineRequest request) {
         Machine machine = new Machine();
@@ -136,7 +133,7 @@ public class MachineServiceImpl implements MachineService {
         machine.setLocation(request.getLocation());
         machine.setSerialNumber(request.getSerialNumber());
         machine.setCreatedAt(Instant.now());
-        machine.setAssetId("MCH-TEMP-" + System.currentTimeMillis()); // ✅ مؤقت
+        machine.setAssetId("MCH-TEMP-" + System.currentTimeMillis());
 
         machine.setCriticality(
                 request.getCriticality() != null
@@ -151,15 +148,11 @@ public class MachineServiceImpl implements MachineService {
         }
 
         Machine saved = machineRepository.save(machine);
-
-        // ✅ تحديث الـ asset_id بالـ id الحقيقي
         saved.setAssetId("MCH-" + saved.getId());
         saved = machineRepository.save(saved);
 
         return MachineMapper.toResponse(saved);
     }
-
-    // ─── UPDATE ──────────────────────────────────────────────────────────────
 
     @Override
     public MachineResponse updateMachine(Long id, UpdateMachineRequest request) {
@@ -182,8 +175,6 @@ public class MachineServiceImpl implements MachineService {
         return MachineMapper.toResponse(saved);
     }
 
-    // ─── DELETE ──────────────────────────────────────────────────────────────
-
     @Override
     public void deleteMachine(Long id) {
         if (!machineRepository.existsById(id)) {
@@ -192,8 +183,7 @@ public class MachineServiceImpl implements MachineService {
         machineRepository.deleteById(id);
     }
 
-    // ─── SENSOR HISTORY ──────────────────────────────────────────────────────
-
+    @Transactional(readOnly = true)
     @Override
     public List<SensorHistoryResponse> getSensorHistory(Long machineId, Integer hours) {
         var readings = sensorReadingRepository
@@ -207,6 +197,11 @@ public class MachineServiceImpl implements MachineService {
 
         for (var r : readings) {
             if (r.getReadingTime().isBefore(cutoffTime)) {
+                continue;
+            }
+
+            //  null check
+            if (r.getSensor() == null || r.getSensor().getSensorType() == null) {
                 continue;
             }
 
