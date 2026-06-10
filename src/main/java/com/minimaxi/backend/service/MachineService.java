@@ -6,6 +6,7 @@ import com.minimaxi.backend.dto.response.MachineResponse;
 import com.minimaxi.backend.dto.response.SensorHistoryResponse;
 
 import java.util.List;
+import java.util.Map;
 
 public interface MachineService {
 
@@ -20,4 +21,8 @@ public interface MachineService {
     void deleteMachine(Long id);
 
     List<SensorHistoryResponse> getSensorHistory(Long machineId, Integer hours);
+
+    List<Map<String, Object>> getMachineIssues(Long machineId);
+    List<Map<String, Object>> getMachineWorkOrders(Long machineId);
+    List<Map<String, Object>> getMachineNotes(Long machineId);
 }

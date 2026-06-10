@@ -17,6 +17,12 @@ import com.minimaxi.backend.repository.SensorRepository;
 import com.minimaxi.backend.service.MachineService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.minimaxi.backend.entity.Issue;
+import com.minimaxi.backend.entity.WorkOrder;
+import com.minimaxi.backend.entity.WorkOrderCompletion;
+import com.minimaxi.backend.repository.IssueRepository;
+import com.minimaxi.backend.repository.WorkOrderRepository;
+import com.minimaxi.backend.repository.WorkOrderCompletionRepository;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,18 +41,28 @@ public class MachineServiceImpl implements MachineService {
     private final SensorReadingRepository sensorReadingRepository;
     private final OrganizationRepository organizationRepository;
 
+    private final IssueRepository issueRepository;
+    private final WorkOrderRepository workOrderRepository;
+    private final WorkOrderCompletionRepository workOrderCompletionRepository;
+
     public MachineServiceImpl(
             MachineRepository machineRepository,
             SensorRepository sensorRepository,
             PredictionRepository predictionRepository,
             SensorReadingRepository sensorReadingRepository,
-            OrganizationRepository organizationRepository
+            OrganizationRepository organizationRepository,
+            IssueRepository issueRepository,
+            WorkOrderRepository workOrderRepository,
+            WorkOrderCompletionRepository workOrderCompletionRepository
     ) {
         this.machineRepository = machineRepository;
         this.sensorRepository = sensorRepository;
         this.predictionRepository = predictionRepository;
         this.sensorReadingRepository = sensorReadingRepository;
         this.organizationRepository = organizationRepository;
+        this.issueRepository = issueRepository;
+        this.workOrderRepository = workOrderRepository;
+        this.workOrderCompletionRepository = workOrderCompletionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -277,5 +293,60 @@ public class MachineServiceImpl implements MachineService {
             case "voltage"     -> 5.0;
             default            -> 2.0;
         };
+    }
+    @Override
+    public List<Map<String, Object>> getMachineIssues(Long machineId) {
+        return issueRepository.findByMachineIdOrderByCreatedAtDesc(machineId)
+                .stream()
+                .map(issue -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("id", issue.getId());
+                    map.put("summary", issue.getSummary());
+                    map.put("details", issue.getDetails());
+                    map.put("severity", issue.getSeverity() != null ? issue.getSeverity().name().toLowerCase() : null);
+                    map.put("status", issue.getStatus() != null ? issue.getStatus().name().toLowerCase() : null);
+                    map.put("source", issue.getSource() != null ? issue.getSource().name().toLowerCase() : null);
+                    map.put("created_at", issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
+                    return map;
+                })
+                .toList();
+    }
+
+    @Override
+    public List<Map<String, Object>> getMachineWorkOrders(Long machineId) {
+        return workOrderRepository.findByMachineIdOrderByCreatedAtDesc(machineId)
+                .stream()
+                .map(wo -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("id", wo.getId());
+                    map.put("title", wo.getTitle());
+                    map.put("description", wo.getDescription());
+                    map.put("priority", wo.getPriority() != null ? wo.getPriority().name().toLowerCase() : null);
+                    map.put("status", wo.getStatus() != null ? wo.getStatus().name().toLowerCase() : null);
+                    map.put("due_date", wo.getDueDate() != null ? wo.getDueDate().toString() : null);
+                    map.put("created_at", wo.getCreatedAt() != null ? wo.getCreatedAt().toString() : null);
+                    map.put("ai_suggested", wo.getAiSuggested());
+                    return map;
+                })
+                .toList();
+    }
+
+    @Override
+    public List<Map<String, Object>> getMachineNotes(Long machineId) {
+        return workOrderCompletionRepository.findByMachineId(machineId)
+                .stream()
+                .map(woc -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("id", woc.getId());
+                    map.put("work_order_id", woc.getWorkOrder() != null ? woc.getWorkOrder().getId() : null);
+                    map.put("work_order_title", woc.getWorkOrder() != null ? woc.getWorkOrder().getTitle() : null);
+                    map.put("action_taken", woc.getActionTaken());
+                    map.put("root_cause", woc.getRootCause());
+                    map.put("additional_notes", woc.getAdditionalNotes());
+                    map.put("time_spent_minutes", woc.getTimeSpentMinutes());
+                    map.put("completed_at", woc.getCompletedAt() != null ? woc.getCompletedAt().toString() : null);
+                    return map;
+                })
+                .toList();
     }
 }

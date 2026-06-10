@@ -77,4 +77,22 @@ public class MachineController {
     ) {
         return machineService.getSensorHistory(id, hours);
     }
+
+    // ✅ Past Failures tab
+    @GetMapping("/{id}/issues")
+    public List<Map<String, Object>> getMachineIssues(@PathVariable Long id) {
+        return machineService.getMachineIssues(id);
+    }
+
+    // ✅ Work Orders tab
+    @GetMapping("/{id}/work-orders")
+    public List<Map<String, Object>> getMachineWorkOrders(@PathVariable Long id) {
+        return machineService.getMachineWorkOrders(id);
+    }
+
+    // ✅ Notes tab
+    @GetMapping("/{id}/notes")
+    public List<Map<String, Object>> getMachineNotes(@PathVariable Long id) {
+        return machineService.getMachineNotes(id);
+    }
 }
