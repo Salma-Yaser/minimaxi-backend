@@ -26,7 +26,6 @@ public class Machine {
     @Column(name = "asset_id", nullable = false, unique = true, length = 50)
     private String assetId;
 
-
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
@@ -55,18 +54,18 @@ public class Machine {
 
     @Column(name = "installation_date")
     private LocalDate installationDate;
+
     @Column(name = "operating_cycles", precision = 10, scale = 2)
     private BigDecimal operatingCycles;
 
     @Column(name = "operating_hours", precision = 10, scale = 2)
     private BigDecimal operatingHours;
+
     @NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-
-    // Default to MEDIUM criticality and HEALTHY status for new machines
     @Enumerated(EnumType.STRING)
     @ColumnDefault("'MEDIUM'")
     @Column(name = "criticality", nullable = false)
@@ -76,4 +75,11 @@ public class Machine {
     @ColumnDefault("'HEALTHY'")
     @Column(name = "status", nullable = false)
     private MachineStatus status;
+
+    // ✅ حقلين جدد للـ Gateway
+    @Column(name = "gateway_url", length = 500)
+    private String gatewayUrl;
+
+    @Column(name = "polling_interval_seconds")
+    private Integer pollingIntervalSeconds;
 }

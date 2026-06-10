@@ -161,6 +161,14 @@ public class MachineServiceImpl implements MachineService {
         );
 
         machine.setStatus(MachineStatus.HEALTHY);
+        if (request.getGatewayUrl() != null) {
+            machine.setGatewayUrl(request.getGatewayUrl());
+        }
+        machine.setPollingIntervalSeconds(
+                request.getPollingIntervalSeconds() != null
+                        ? request.getPollingIntervalSeconds()
+                        : 30
+        );
 
         if (request.getInstallationDate() != null) {
             machine.setInstallationDate(LocalDate.parse(request.getInstallationDate()));
