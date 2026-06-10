@@ -9,6 +9,10 @@ import java.util.List;
 
 public interface WorkOrderCompletionRepository extends JpaRepository<WorkOrderCompletion, Long> {
 
-    @Query("SELECT woc FROM WorkOrderCompletion woc WHERE woc.workOrder.machine.id = :machineId ORDER BY woc.completedAt DESC")
+
+    @Query("SELECT woc FROM WorkOrderCompletion woc " +
+            "JOIN FETCH woc.workOrder wo " +
+            "WHERE wo.machine.id = :machineId " +
+            "ORDER BY woc.completedAt DESC")
     List<WorkOrderCompletion> findByMachineId(@Param("machineId") Long machineId);
 }
