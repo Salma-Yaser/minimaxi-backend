@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -23,71 +24,240 @@ public class GatewayController {
     @GetMapping("/assets/{assetId}/readings")
     public Map<String, Object> getReadings(@PathVariable String assetId) {
 
-        Machine machine = machineRepository.findByAssetId(assetId)
-                .orElse(null);
-
-        // seed ثابت لكل ماشين + بيتغير كل 30 ثانية
-        int seedBase = assetId.hashCode();
-        long timeSlot = System.currentTimeMillis() / 30000;
-        Random random = new Random(seedBase + timeSlot);
+        Machine machine = machineRepository.findByAssetId(assetId).orElse(null);
 
         String type = machine != null && machine.getMachineType() != null
                 ? machine.getMachineType().toLowerCase()
                 : "general";
 
-        Map<String, Object> readings = generateReadings(type, random);
+        String status = machine != null && machine.getStatus() != null
+                ? machine.getStatus().name().toLowerCase()
+                : "healthy";
+
+        String criticality = machine != null && machine.getCriticality() != null
+                ? machine.getCriticality().name().toLowerCase()
+                : "medium";
+
+        // seed ثابت لكل ماشين + بيتغير كل 30 ثانية
+        int seedBase = assetId.hashCode();
+        long timeSlot = System.currentTimeMillis() / 30000;
+        Random r = new Random(seedBase + timeSlot);
+
+        List<Double> data = generate21Sensors(type, status, criticality, r);
+
+        Map<String, Object> readings = new LinkedHashMap<>();
+        readings.put("sensor_1",  data.get(0));
+        readings.put("sensor_2",  data.get(1));
+        readings.put("sensor_3",  data.get(2));
+        readings.put("sensor_4",  data.get(3));
+        readings.put("sensor_5",  data.get(4));
+        readings.put("sensor_6",  data.get(5));
+        readings.put("sensor_7",  data.get(6));
+        readings.put("sensor_8",  data.get(7));
+        readings.put("sensor_9",  data.get(8));
+        readings.put("sensor_10", data.get(9));
+        readings.put("sensor_11", data.get(10));
+        readings.put("sensor_12", data.get(11));
+        readings.put("sensor_13", data.get(12));
+        readings.put("sensor_14", data.get(13));
+        readings.put("sensor_15", data.get(14));
+        readings.put("sensor_16", data.get(15));
+        readings.put("sensor_17", data.get(16));
+        readings.put("sensor_18", data.get(17));
+        readings.put("sensor_19", data.get(18));
+        readings.put("sensor_20", data.get(19));
+        readings.put("sensor_21", data.get(20));
+
+        // أسماء بشرية للعرض في الفرونت
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.put("sensor_1",  "Temperature");
+        labels.put("sensor_2",  "Pressure");
+        labels.put("sensor_3",  "Rotational Speed");
+        labels.put("sensor_4",  "Thermal Efficiency");
+        labels.put("sensor_5",  "Airflow Dynamics");
+        labels.put("sensor_6",  "Pressure Stability");
+        labels.put("sensor_7",  "Vibration");
+        labels.put("sensor_8",  "Temperature Stage");
+        labels.put("sensor_9",  "Efficiency Parameter");
+        labels.put("sensor_10", "Flow Variation");
+        labels.put("sensor_11", "Vibration Amplitude");
+        labels.put("sensor_12", "Pressure Ratio");
+        labels.put("sensor_13", "Thermal Load");
+        labels.put("sensor_14", "Mechanical Stress");
+        labels.put("sensor_15", "Turbine Behavior");
+        labels.put("sensor_16", "Air Intake Signal");
+        labels.put("sensor_17", "Pressure Fluctuation");
+        labels.put("sensor_18", "Heat Dissipation");
+        labels.put("sensor_19", "Mechanical Oscillation");
+        labels.put("sensor_20", "System Efficiency");
+        labels.put("sensor_21", "Dynamic Vibration");
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("assetId", assetId);
         response.put("machineType", type);
         response.put("timestamp", Instant.now().toString());
         response.put("readings", readings);
+        response.put("labels", labels);
         response.put("gatewayStatus", "ONLINE");
+
+        // ✅ format جاهز للـ AI model مباشرة
+        response.put("aiPayload", Map.of("data", data));
 
         return response;
     }
 
-    private Map<String, Object> generateReadings(String type, Random r) {
-        Map<String, Object> readings = new LinkedHashMap<>();
+    private List<Double> generate21Sensors(String type, String status, String criticality, Random r) {
 
-        switch (type) {
-            case "cnc machine", "cnc" -> {
-                readings.put("Temperature",       round(65 + r.nextDouble() * 25));   // 65-90°C
-                readings.put("Vibration",         round(0.3 + r.nextDouble() * 1.2)); // 0.3-1.5 mm/s
-                readings.put("Pressure",          round(90 + r.nextDouble() * 30));   // 90-120 bar
-                readings.put("Rotational Speed",  round(1200 + r.nextDouble() * 600));// 1200-1800 RPM
-                readings.put("Thermal Efficiency",round(78 + r.nextDouble() * 15));   // 78-93%
-            }
-            case "pump", "hydraulic pump" -> {
-                readings.put("Temperature",       round(40 + r.nextDouble() * 20));   // 40-60°C
-                readings.put("Pressure",          round(150 + r.nextDouble() * 100)); // 150-250 bar
-                readings.put("Vibration",         round(0.1 + r.nextDouble() * 0.8)); // 0.1-0.9 mm/s
-                readings.put("Flow Rate",         round(80 + r.nextDouble() * 40));   // 80-120 L/min
-                readings.put("Efficiency",        round(82 + r.nextDouble() * 12));   // 82-94%
-            }
-            case "engine", "industrial engine" -> {
-                readings.put("Temperature",       round(75 + r.nextDouble() * 30));   // 75-105°C
-                readings.put("Vibration",         round(0.5 + r.nextDouble() * 1.5)); // 0.5-2.0 mm/s
-                readings.put("Pressure",          round(60 + r.nextDouble() * 40));   // 60-100 bar
-                readings.put("Rotational Speed",  round(800 + r.nextDouble() * 400)); // 800-1200 RPM
-                readings.put("Fuel Consumption",  round(15 + r.nextDouble() * 10));   // 15-25 L/h
-            }
-            case "compressor", "air compressor" -> {
-                readings.put("Temperature",       round(50 + r.nextDouble() * 30));   // 50-80°C
-                readings.put("Pressure",          round(6 + r.nextDouble() * 4));     // 6-10 bar
-                readings.put("Vibration",         round(0.2 + r.nextDouble() * 0.6)); // 0.2-0.8 mm/s
-                readings.put("Air Flow",          round(200 + r.nextDouble() * 100)); // 200-300 m³/h
-                readings.put("Power Consumption", round(15 + r.nextDouble() * 10));   // 15-25 kW
-            }
-            default -> {
-                readings.put("Temperature",       round(60 + r.nextDouble() * 30));
-                readings.put("Vibration",         round(0.2 + r.nextDouble() * 1.0));
-                readings.put("Pressure",          round(80 + r.nextDouble() * 40));
-                readings.put("Efficiency",        round(75 + r.nextDouble() * 20));
-            }
-        }
+        // معامل الضغط بناءً على الـ status والـ criticality
+        double stressFactor = 1.0;
+        if ("critical".equals(status))   stressFactor = 1.4;
+        else if ("warning".equals(status)) stressFactor = 1.2;
+        if ("high".equals(criticality))  stressFactor += 0.1;
 
-        return readings;
+        double sf = stressFactor;
+
+        return switch (type) {
+            case "cnc machine", "cnc" -> List.of(
+                    // sensor_1  Temperature
+                    round(580 + r.nextDouble() * 80 * sf),
+                    // sensor_2  Pressure
+                    round(680 + r.nextDouble() * 60 * sf),
+                    // sensor_3  Rotational Speed
+                    round(1800 + r.nextDouble() * 200 * sf),
+                    // sensor_4  Thermal Efficiency
+                    round(1500 + r.nextDouble() * 200 * sf),
+                    // sensor_5  Airflow Dynamics
+                    round(28 + r.nextDouble() * 10 * sf),
+                    // sensor_6  Pressure Stability
+                    round(42 + r.nextDouble() * 12 * sf),
+                    // sensor_7  Vibration
+                    round(680 + r.nextDouble() * 60 * sf),
+                    // sensor_8  Temperature Stage
+                    round(2400 + r.nextDouble() * 200 * sf),
+                    // sensor_9  Efficiency Parameter
+                    round(9800 + r.nextDouble() * 800 * sf),
+                    // sensor_10 Flow Variation
+                    round(1.8 + r.nextDouble() * 0.4 * sf),
+                    // sensor_11 Vibration Amplitude
+                    round(85 + r.nextDouble() * 10 * sf),
+                    // sensor_12 Pressure Ratio
+                    round(600 + r.nextDouble() * 80 * sf),
+                    // sensor_13 Thermal Load
+                    round(2400 + r.nextDouble() * 200 * sf),
+                    // sensor_14 Mechanical Stress
+                    round(8800 + r.nextDouble() * 800 * sf),
+                    // sensor_15 Turbine Behavior
+                    round(10 + r.nextDouble() * 4 * sf),
+                    // sensor_16 Air Intake Signal
+                    round(0.10 + r.nextDouble() * 0.05 * sf),
+                    // sensor_17 Pressure Fluctuation
+                    round(490 + r.nextDouble() * 40 * sf),
+                    // sensor_18 Heat Dissipation
+                    round(2450 + r.nextDouble() * 150 * sf),
+                    // sensor_19 Mechanical Oscillation
+                    round(82 + r.nextDouble() * 8 * sf),
+                    // sensor_20 System Efficiency
+                    round(48 + r.nextDouble() * 10 * sf),
+                    // sensor_21 Dynamic Vibration
+                    round(38 + r.nextDouble() * 8 * sf)
+            );
+
+            case "pump", "hydraulic pump" -> List.of(
+                    round(520 + r.nextDouble() * 60 * sf),
+                    round(720 + r.nextDouble() * 80 * sf),
+                    round(1600 + r.nextDouble() * 300 * sf),
+                    round(1400 + r.nextDouble() * 250 * sf),
+                    round(25 + r.nextDouble() * 12 * sf),
+                    round(38 + r.nextDouble() * 15 * sf),
+                    round(640 + r.nextDouble() * 80 * sf),
+                    round(2200 + r.nextDouble() * 300 * sf),
+                    round(9000 + r.nextDouble() * 1000 * sf),
+                    round(1.6 + r.nextDouble() * 0.5 * sf),
+                    round(80 + r.nextDouble() * 12 * sf),
+                    round(580 + r.nextDouble() * 100 * sf),
+                    round(2200 + r.nextDouble() * 300 * sf),
+                    round(8200 + r.nextDouble() * 1000 * sf),
+                    round(9 + r.nextDouble() * 5 * sf),
+                    round(0.09 + r.nextDouble() * 0.06 * sf),
+                    round(460 + r.nextDouble() * 60 * sf),
+                    round(2300 + r.nextDouble() * 200 * sf),
+                    round(78 + r.nextDouble() * 10 * sf),
+                    round(45 + r.nextDouble() * 12 * sf),
+                    round(35 + r.nextDouble() * 10 * sf)
+            );
+
+            case "engine", "industrial engine" -> List.of(
+                    round(700 + r.nextDouble() * 100 * sf),
+                    round(760 + r.nextDouble() * 80 * sf),
+                    round(2000 + r.nextDouble() * 300 * sf),
+                    round(1700 + r.nextDouble() * 200 * sf),
+                    round(38 + r.nextDouble() * 15 * sf),
+                    round(55 + r.nextDouble() * 15 * sf),
+                    round(760 + r.nextDouble() * 80 * sf),
+                    round(2600 + r.nextDouble() * 300 * sf),
+                    round(11000 + r.nextDouble() * 1000 * sf),
+                    round(2.2 + r.nextDouble() * 0.5 * sf),
+                    round(92 + r.nextDouble() * 8 * sf),
+                    round(700 + r.nextDouble() * 80 * sf),
+                    round(2600 + r.nextDouble() * 300 * sf),
+                    round(10000 + r.nextDouble() * 1200 * sf),
+                    round(13 + r.nextDouble() * 5 * sf),
+                    round(0.14 + r.nextDouble() * 0.05 * sf),
+                    round(540 + r.nextDouble() * 60 * sf),
+                    round(2700 + r.nextDouble() * 200 * sf),
+                    round(90 + r.nextDouble() * 8 * sf),
+                    round(58 + r.nextDouble() * 10 * sf),
+                    round(46 + r.nextDouble() * 8 * sf)
+            );
+
+            case "compressor", "air compressor" -> List.of(
+                    round(560 + r.nextDouble() * 70 * sf),
+                    round(700 + r.nextDouble() * 70 * sf),
+                    round(1700 + r.nextDouble() * 250 * sf),
+                    round(1550 + r.nextDouble() * 200 * sf),
+                    round(30 + r.nextDouble() * 12 * sf),
+                    round(44 + r.nextDouble() * 12 * sf),
+                    round(700 + r.nextDouble() * 70 * sf),
+                    round(2300 + r.nextDouble() * 250 * sf),
+                    round(9500 + r.nextDouble() * 900 * sf),
+                    round(1.9 + r.nextDouble() * 0.4 * sf),
+                    round(87 + r.nextDouble() * 10 * sf),
+                    round(620 + r.nextDouble() * 90 * sf),
+                    round(2300 + r.nextDouble() * 250 * sf),
+                    round(8600 + r.nextDouble() * 900 * sf),
+                    round(11 + r.nextDouble() * 4 * sf),
+                    round(0.11 + r.nextDouble() * 0.05 * sf),
+                    round(500 + r.nextDouble() * 50 * sf),
+                    round(2400 + r.nextDouble() * 200 * sf),
+                    round(84 + r.nextDouble() * 9 * sf),
+                    round(50 + r.nextDouble() * 10 * sf),
+                    round(40 + r.nextDouble() * 8 * sf)
+            );
+
+            default -> List.of(
+                    round(600 + r.nextDouble() * 100 * sf),
+                    round(700 + r.nextDouble() * 80 * sf),
+                    round(1800 + r.nextDouble() * 300 * sf),
+                    round(1550 + r.nextDouble() * 200 * sf),
+                    round(30 + r.nextDouble() * 12 * sf),
+                    round(45 + r.nextDouble() * 12 * sf),
+                    round(700 + r.nextDouble() * 80 * sf),
+                    round(2400 + r.nextDouble() * 200 * sf),
+                    round(9500 + r.nextDouble() * 800 * sf),
+                    round(1.9 + r.nextDouble() * 0.4 * sf),
+                    round(87 + r.nextDouble() * 8 * sf),
+                    round(630 + r.nextDouble() * 80 * sf),
+                    round(2400 + r.nextDouble() * 200 * sf),
+                    round(8800 + r.nextDouble() * 800 * sf),
+                    round(11 + r.nextDouble() * 4 * sf),
+                    round(0.11 + r.nextDouble() * 0.05 * sf),
+                    round(500 + r.nextDouble() * 40 * sf),
+                    round(2450 + r.nextDouble() * 150 * sf),
+                    round(83 + r.nextDouble() * 8 * sf),
+                    round(50 + r.nextDouble() * 10 * sf),
+                    round(39 + r.nextDouble() * 8 * sf)
+            );
+        };
     }
 
     private double round(double value) {
