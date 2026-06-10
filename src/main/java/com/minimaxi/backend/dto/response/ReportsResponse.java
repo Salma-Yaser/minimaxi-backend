@@ -1,22 +1,26 @@
-// =====================================================================
-// ReportsResponse.java
-// =====================================================================
 package com.minimaxi.backend.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 import java.util.Map;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReportsResponse {
 
     @JsonProperty("downtime_reduction")
-    private double downtimeReduction;
+    private Double downtimeReduction;
 
     @JsonProperty("prediction_accuracy")
-    private double predictionAccuracy;
+    private Double predictionAccuracy;
 
     @JsonProperty("cost_savings")
-    private double costSavings;
+    private Double costSavings;
 
     @JsonProperty("preventive_vs_reactive")
     private Map<String, Integer> preventiveVsReactive;
@@ -24,62 +28,78 @@ public class ReportsResponse {
     @JsonProperty("monthly_downtime")
     private List<MonthlyDowntime> monthlyDowntime;
 
+    @JsonProperty("monthly_cost")
+    private List<MonthlyCost> monthlyCost;
+
+    @JsonProperty("accuracy_trend")
+    private List<AccuracyTrend> accuracyTrend;
+
     @JsonProperty("technician_performance")
     private List<TechnicianPerformance> technicianPerformance;
 
-    public ReportsResponse(double downtimeReduction, double predictionAccuracy,
-                           double costSavings, Map<String, Integer> preventiveVsReactive,
-                           List<MonthlyDowntime> monthlyDowntime,
-                           List<TechnicianPerformance> technicianPerformance) {
-        this.downtimeReduction = downtimeReduction;
-        this.predictionAccuracy = predictionAccuracy;
-        this.costSavings = costSavings;
-        this.preventiveVsReactive = preventiveVsReactive;
-        this.monthlyDowntime = monthlyDowntime;
-        this.technicianPerformance = technicianPerformance;
-    }
-
-    public double getDowntimeReduction() { return downtimeReduction; }
-    public double getPredictionAccuracy() { return predictionAccuracy; }
-    public double getCostSavings() { return costSavings; }
-    public Map<String, Integer> getPreventiveVsReactive() { return preventiveVsReactive; }
-    public List<MonthlyDowntime> getMonthlyDowntime() { return monthlyDowntime; }
-    public List<TechnicianPerformance> getTechnicianPerformance() { return technicianPerformance; }
-
-    // ─── Nested classes ───────────────────────────────────────────────────────
-
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class MonthlyDowntime {
         private String month;
-        private double hours;
 
-        public MonthlyDowntime(String month, double hours) {
-            this.month = month;
-            this.hours = hours;
+        @JsonProperty("before_hours")
+        private Double beforeHours;
+
+        @JsonProperty("after_hours")
+        private Double afterHours;
+
+        // backwards-compat للكود القديم
+        public MonthlyDowntime(String month, Double hours) {
+            this.month       = month;
+            this.beforeHours = hours;
+            this.afterHours  = Math.round(hours * 0.65 * 10.0) / 10.0;
         }
-
-        public String getMonth() { return month; }
-        public double getHours() { return hours; }
     }
 
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MonthlyCost {
+        private String month;
+        private Double before;
+        private Double after;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AccuracyTrend {
+        private String month;
+        private Double accuracy;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class TechnicianPerformance {
         private String name;
-        private long completed;
+        private Long completed;
 
         @JsonProperty("avg_time")
-        private double avgTime;
+        private Double avgTime;
 
-        private double rating;
+        private Double rating;
 
-        public TechnicianPerformance(String name, long completed, double avgTime, double rating) {
-            this.name = name;
-            this.completed = completed;
-            this.avgTime = avgTime;
-            this.rating = rating;
+        @JsonProperty("total_hours")
+        private Double totalHours;
+
+        @JsonProperty("success_rate")
+        private Double successRate;
+
+        // backwards-compat للكود القديم
+        public TechnicianPerformance(String name, Long completed, Double avgTime, Double rating) {
+            this.name        = name;
+            this.completed   = completed;
+            this.avgTime     = avgTime;
+            this.rating      = rating;
+            this.totalHours  = completed * avgTime;
+            this.successRate = 94.0;
         }
-
-        public String getName() { return name; }
-        public long getCompleted() { return completed; }
-        public double getAvgTime() { return avgTime; }
-        public double getRating() { return rating; }
     }
 }

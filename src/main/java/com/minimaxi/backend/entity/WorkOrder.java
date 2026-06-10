@@ -80,4 +80,7 @@ public class WorkOrder {
     @ColumnDefault("'OPEN'")
     @Column(name = "status", nullable = false)
     private WorkOrderStatus status;
+
+    @OneToOne(mappedBy = "workOrder", fetch = FetchType.LAZY)
+    private WorkOrderCompletion completion;
 }
