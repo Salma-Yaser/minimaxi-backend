@@ -103,6 +103,10 @@ public class UserServiceImpl implements UserService {
         if (request.getPhone() != null)  user.setPhone(request.getPhone());
         if (request.getRole() != null)   user.setRole(UserRole.valueOf(request.getRole().toUpperCase()));
         if (request.getStatus() != null) {
+            // ✅ منع تغيير status لو INVITED
+            if (user.getStatus() == UserStatus.INVITED) {
+                throw new RuntimeException("Cannot change status of an invited user before they activate their account");
+            }
             try {
                 user.setStatus(UserStatus.valueOf(request.getStatus().toUpperCase()));
             } catch (IllegalArgumentException e) {
