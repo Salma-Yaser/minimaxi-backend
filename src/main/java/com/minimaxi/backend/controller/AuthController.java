@@ -61,4 +61,9 @@ public class AuthController {
                 body.get("newPassword")
         );
     }
+
+    @PostMapping("/activate-invited")
+    public Map<String, Object> activateInvitedUser(@RequestBody Map<String, String> body) {
+        return authService.activateInvitedUser(body.get("token"), body.get("password"));
+    }
 }

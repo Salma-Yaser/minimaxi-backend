@@ -40,6 +40,20 @@ public class EmailService {
         sendEmail(toEmail, subject, htmlContent);
     }
 
+    public void sendInvitationEmail(String toEmail, String contactName, String inviteToken) {
+        String activationLink = "http://localhost:5173/set-password?token=" + inviteToken;
+        String subject = "You've Been Invited to MiniMaxi!";
+        String htmlContent = """
+        <h2>Hello, %s!</h2>
+        <p>You have been invited to join <strong>MiniMaxi</strong>.</p>
+        <p>Click the button below to set your password and activate your account:</p>
+        <a href="%s" style="background:#3182ce;color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;">Set My Password</a>
+        <p>If the button doesn't work, copy and paste this link: %s</p>
+        <p>This link expires in 48 hours.</p>
+    """.formatted(contactName, activationLink, activationLink);
+        sendEmail(toEmail, subject, htmlContent);
+    }
+
     private void sendEmail(String to, String subject, String htmlContent) {
         Email from = new Email(fromEmail);
         Email toEmail = new Email(to);

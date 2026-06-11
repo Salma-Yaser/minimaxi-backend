@@ -20,6 +20,7 @@ import com.minimaxi.backend.service.AuthService;
 import com.minimaxi.backend.service.EmailService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Map;
@@ -188,6 +189,50 @@ public class AuthServiceImpl implements AuthService {
         return Map.of(
                 "success", true,
                 "message", "Password reset successfully"
+        );
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> activateInvitedUser(String token, String password) {
+        // ✅ تحقق من الـ token
+        if (!jwtUtil.isTokenValid(token)) {
+            throw new RuntimeException("Invalid or expired token");
+        }
+
+        String email = jwtUtil.extractEmail(token);
+
+        AppUser user = appUserRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getStatus() != UserStatus.INVITED) {
+            throw new RuntimeException("User is already activated");
+        }
+
+        // ✅ حفظ الباسورد وتغيير الـ status
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setStatus(UserStatus.ACTIVE);
+        appUserRepository.save(user);
+
+        // ✅ ولّدي token جديد للـ login التلقائي
+        String newToken = jwtUtil.generateToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().name(),
+                user.getOrganization().getId()
+        );
+
+        return Map.of(
+                "success", true,
+                "token", newToken,
+                "user", Map.of(
+                        "id", user.getId(),
+                        "name", user.getFullName(),
+                        "email", user.getEmail(),
+                        "role", user.getRole().name().toLowerCase(),
+                        "status", user.getStatus().name().toLowerCase(),
+                        "companyId", user.getOrganization().getId()
+                )
         );
     }
 }

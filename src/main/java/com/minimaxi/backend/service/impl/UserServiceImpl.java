@@ -93,8 +93,13 @@ public class UserServiceImpl implements UserService {
         if (request.getName() != null)   user.setFullName(request.getName());
         if (request.getPhone() != null)  user.setPhone(request.getPhone());
         if (request.getRole() != null)   user.setRole(UserRole.valueOf(request.getRole().toUpperCase()));
-        if (request.getStatus() != null) user.setStatus(UserStatus.valueOf(request.getStatus().toUpperCase()));
-
+        if (request.getStatus() != null) {
+            try {
+                user.setStatus(UserStatus.valueOf(request.getStatus().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid status value: " + request.getStatus());
+            }
+        }
         return toResponse(appUserRepository.save(user));
     }
 
@@ -125,7 +130,24 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        return toResponse(appUserRepository.save(user));
+        AppUser savedUser = appUserRepository.save(user);
+
+        // ✅ ولّدي token بالـ userId عشان نعرف مين بيفعّل
+        String inviteToken = jwtUtil.generateToken(
+                savedUser.getId(),
+                savedUser.getEmail(),
+                savedUser.getRole().name(),
+                request.getOrganizationId()
+        );
+
+        // ✅ ابعتي الإيميل
+        emailService.sendInvitationEmail(
+                savedUser.getEmail(),
+                savedUser.getFullName(),
+                inviteToken
+        );
+
+        return toResponse(savedUser);
     }
 
     @Override
