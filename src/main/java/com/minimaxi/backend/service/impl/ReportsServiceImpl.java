@@ -34,10 +34,21 @@ public class ReportsServiceImpl implements ReportsService {
 
     @Override
     @Transactional
-    public ReportsResponse getReportsData() {
+    public ReportsResponse getReportsData(Long organizationId) {
 
-        var allWorkOrders  = workOrderRepository.findAll();
-        var allPredictions = predictionRepository.findAll();
+        var allWorkOrders = workOrderRepository.findAll().stream()
+                .filter(wo -> organizationId == null ||
+                        (wo.getMachine() != null &&
+                                wo.getMachine().getOrganization() != null &&
+                                wo.getMachine().getOrganization().getId().equals(organizationId)))
+                .toList();
+
+        var allPredictions = predictionRepository.findAll().stream()
+                .filter(p -> organizationId == null ||
+                        (p.getMachine() != null &&
+                                p.getMachine().getOrganization() != null &&
+                                p.getMachine().getOrganization().getId().equals(organizationId)))
+                .toList();
 
         DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("MMM")
                 .withLocale(java.util.Locale.ENGLISH);
