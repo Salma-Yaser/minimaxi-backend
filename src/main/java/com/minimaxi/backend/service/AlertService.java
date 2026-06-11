@@ -7,7 +7,7 @@ import java.util.Map;
 
 public interface AlertService {
 
-    List<AlertResponse> getAlerts(String severity, Boolean acknowledged);
+    List<AlertResponse> getAlerts(String severity, Boolean acknowledged, Long organizationId);
 
     AlertResponse acknowledgeAlert(Long id, String acknowledgedBy);
 }

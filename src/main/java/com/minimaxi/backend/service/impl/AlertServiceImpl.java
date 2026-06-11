@@ -48,10 +48,12 @@ public class AlertServiceImpl implements AlertService {
 
     @Override
     @Transactional
-    public List<AlertResponse> getAlerts(String severity, Boolean acknowledged) {
+    public List<AlertResponse> getAlerts(String severity, Boolean acknowledged, Long organizationId) {
         return notificationRepository.findAll()
                 .stream()
-                // بنجيب بس الـ PREDICTED_FAILURE و SENSOR_ALERT كـ alerts
+                .filter(n -> organizationId == null ||
+                        (n.getOrganization() != null &&
+                                n.getOrganization().getId().equals(organizationId)))
                 .filter(n -> n.getType().name().equals("PREDICTED_FAILURE")
                         || n.getType().name().equals("SENSOR_ALERT"))
                 .filter(n -> severity == null || severity.isBlank() ||

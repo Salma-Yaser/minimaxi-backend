@@ -7,25 +7,34 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import com.minimaxi.backend.config.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/alerts")
 @CrossOrigin(origins = "http://localhost:5173")
 public class AlertController {
 
     private final AlertService alertService;
+    private final JwtUtil jwtUtil;
 
-    public AlertController(AlertService alertService) {
+    public AlertController(AlertService alertService, JwtUtil jwtUtil) {
         this.alertService = alertService;
+        this.jwtUtil = jwtUtil;
     }
 
-    // Frontend calls: GET /api/alerts  ✅
-    // optional filters: ?severity=critical&acknowledged=false
     @GetMapping
     public List<AlertResponse> getAlerts(
+            HttpServletRequest request,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) Boolean acknowledged
     ) {
-        return alertService.getAlerts(severity, acknowledged);
+        Long orgId = null;
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            orgId = jwtUtil.extractOrganizationId(authHeader.substring(7));
+        }
+        return alertService.getAlerts(severity, acknowledged, orgId);
     }
 
     // Frontend calls: PUT /api/alerts/{id}/acknowledge  ✅
