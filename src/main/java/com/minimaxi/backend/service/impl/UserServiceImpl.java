@@ -18,16 +18,25 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import com.minimaxi.backend.config.JwtUtil;
+import com.minimaxi.backend.service.EmailService;
+
 @Service
 public class UserServiceImpl implements UserService {
 
     private final AppUserRepository appUserRepository;
     private final OrganizationRepository organizationRepository;
+    private final JwtUtil jwtUtil;
+    private final EmailService emailService;
 
     public UserServiceImpl(AppUserRepository appUserRepository,
-                           OrganizationRepository organizationRepository) {
-        this.appUserRepository = appUserRepository;
+                           OrganizationRepository organizationRepository,
+                           JwtUtil jwtUtil,
+                           EmailService emailService) {
+        this.appUserRepository    = appUserRepository;
         this.organizationRepository = organizationRepository;
+        this.jwtUtil              = jwtUtil;
+        this.emailService         = emailService;
     }
 
     private UserResponse toResponse(AppUser user) {
