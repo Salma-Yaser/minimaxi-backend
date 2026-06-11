@@ -39,20 +39,20 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    public DashboardStatsResponse getStats() {
-        var machines = machineRepository.findAll();
+    public DashboardStatsResponse getStats(Long organizationId) {
+        var machines = machineRepository.findByOrganizationId(organizationId);
 
         long total    = machines.size();
         long healthy  = machines.stream().filter(m -> m.getStatus() == MachineStatus.HEALTHY).count();
         long warning  = machines.stream().filter(m -> m.getStatus() == MachineStatus.WARNING).count();
         long critical = machines.stream().filter(m -> m.getStatus() == MachineStatus.CRITICAL).count();
 
-        long activeWO = workOrderRepository.findAll().stream()
+        long activeWO = workOrderRepository.findByMachine_OrganizationId(organizationId).stream()
                 .filter(wo -> wo.getStatus() != WorkOrderStatus.COMPLETED
                         && wo.getStatus() != WorkOrderStatus.CLOSED)
                 .count();
 
-        long predictedFailures = predictionRepository.findAll().stream()
+        long predictedFailures = predictionRepository.findByMachine_OrganizationId(organizationId).stream()
                 .filter(p -> p.getSeverity() == PredictionSeverity.HIGH
                         || p.getSeverity() == PredictionSeverity.CRITICAL)
                 .map(p -> p.getMachine().getId())
@@ -74,8 +74,8 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<HealthDistributionResponse> getHealthDistribution() {
-        var machines = machineRepository.findAll();
+    public List<HealthDistributionResponse> getHealthDistribution(Long organizationId) {
+        var machines = machineRepository.findByOrganizationId(organizationId);
 
         long healthy  = machines.stream().filter(m -> m.getStatus() == MachineStatus.HEALTHY).count();
         long warning  = machines.stream().filter(m -> m.getStatus() == MachineStatus.WARNING).count();
@@ -93,15 +93,14 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<FailureTrendResponse> getFailureTrend(String period) {
-        var predictions = predictionRepository.findAll();
+    public List<FailureTrendResponse> getFailureTrend(String period, Long organizationId) {
+        var predictions = predictionRepository.findByMachine_OrganizationId(organizationId);
 
         if (predictions.isEmpty()) {
             return getDefaultFailureTrend(period);
         }
 
         String normalizedPeriod = period == null ? "monthly" : period.toLowerCase();
-
         DateTimeFormatter formatter = getFormatterForPeriod(normalizedPeriod);
 
         Map<String, List<Double>> grouped = new TreeMap<>((a, b) -> {
@@ -126,7 +125,6 @@ public class DashboardServiceImpl implements DashboardService {
         if (grouped.isEmpty()) return getDefaultFailureTrend(normalizedPeriod);
 
         List<FailureTrendResponse> result = new ArrayList<>();
-
         for (var entry : grouped.entrySet()) {
             double avg = entry.getValue().stream()
                     .mapToDouble(Double::doubleValue)
@@ -142,54 +140,10 @@ public class DashboardServiceImpl implements DashboardService {
         return result;
     }
 
-    private String getSortKey(String label, String period) {
-        return switch (period) {
-            case "yearly" -> label; // 2025, 2026
-            case "monthly" -> {
-                java.time.YearMonth ym = java.time.YearMonth.parse(
-                        label,
-                        DateTimeFormatter.ofPattern("MMM yy", java.util.Locale.ENGLISH)
-                );
-                yield ym.toString(); // 2025-12, 2026-01
-            }
-            case "daily" -> {
-                // daily label is like "Jun 09"; assume current year
-                int currentYear = java.time.Year.now().getValue();
-                java.time.MonthDay md = java.time.MonthDay.parse(
-                        label,
-                        DateTimeFormatter.ofPattern("MMM dd", java.util.Locale.ENGLISH)
-                );
-                yield currentYear + "-" + String.format("%02d-%02d", md.getMonthValue(), md.getDayOfMonth());
-            }
-            case "weekly" -> {
-                // label is like "Week 23"
-                String weekNumber = label.replace("Week", "").trim();
-                yield String.format("%02d", Integer.parseInt(weekNumber));
-            }
-            default -> label;
-        };
-    }
-
-    private DateTimeFormatter getFormatterForPeriod(String period) {
-        return switch (period == null ? "monthly" : period.toLowerCase()) {
-            case "daily"  -> DateTimeFormatter.ofPattern("MMM dd");
-            case "weekly" -> DateTimeFormatter.ofPattern("'Week' w");
-            case "yearly" -> DateTimeFormatter.ofPattern("yyyy");
-            default       -> DateTimeFormatter.ofPattern("MMM yy");
-        };
-    }
-
-    private List<FailureTrendResponse> getDefaultFailureTrend(String period) {
-        return List.of(
-                new FailureTrendResponse("Jan 26", 10.0),
-                new FailureTrendResponse("Feb 26", 8.0)
-        );
-    }
-
     @Override
     @Transactional(readOnly = true)
-    public List<SensorTrendResponse> getSensorTrends() {
-        var readings = sensorReadingRepository.findAll();
+    public List<SensorTrendResponse> getSensorTrends(Long organizationId) {
+        var readings = sensorReadingRepository.findBySensor_Machine_OrganizationId(organizationId);
 
         if (readings.isEmpty()) {
             return getDefaultSensorTrends();
@@ -200,8 +154,6 @@ public class DashboardServiceImpl implements DashboardService {
 
         for (var r : readings) {
             if (r.getReadingTime() == null) continue;
-
-            // ✅ null check
             if (r.getSensor() == null || r.getSensor().getSensorType() == null) continue;
 
             String timeKey = r.getReadingTime()
@@ -225,6 +177,69 @@ public class DashboardServiceImpl implements DashboardService {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<AIInsightResponse> getAIInsights(Long organizationId) {
+        return predictionRepository.findByMachine_OrganizationId(organizationId).stream()
+                .filter(p -> p.getMachine() != null)
+                .sorted(Comparator.comparing(p -> ((Prediction) p).getPredictedAt()).reversed())
+                .limit(5)
+                .map(p -> new AIInsightResponse(
+                        p.getId(),
+                        p.getMachine().getId(),
+                        p.getMachine().getName(),
+                        p.getMachine().getAssetId(),
+                        p.getExplanation(),
+                        p.getSeverity() != null ? p.getSeverity().name().toLowerCase() : "low",
+                        p.getFailureProbability() != null ? p.getFailureProbability().doubleValue() : 0.0
+                ))
+                .toList();
+    }
+
+    // ─── Helper methods (لازم تفضل موجودة) ────────────────────────────
+
+    private String getSortKey(String label, String period) {
+        return switch (period) {
+            case "yearly" -> label;
+            case "monthly" -> {
+                java.time.YearMonth ym = java.time.YearMonth.parse(
+                        label,
+                        DateTimeFormatter.ofPattern("MMM yy", java.util.Locale.ENGLISH)
+                );
+                yield ym.toString();
+            }
+            case "daily" -> {
+                int currentYear = java.time.Year.now().getValue();
+                java.time.MonthDay md = java.time.MonthDay.parse(
+                        label,
+                        DateTimeFormatter.ofPattern("MMM dd", java.util.Locale.ENGLISH)
+                );
+                yield currentYear + "-" + String.format("%02d-%02d", md.getMonthValue(), md.getDayOfMonth());
+            }
+            case "weekly" -> {
+                String weekNumber = label.replace("Week", "").trim();
+                yield String.format("%02d", Integer.parseInt(weekNumber));
+            }
+            default -> label;
+        };
+    }
+
+    private DateTimeFormatter getFormatterForPeriod(String period) {
+        return switch (period == null ? "monthly" : period.toLowerCase()) {
+            case "daily"  -> DateTimeFormatter.ofPattern("MMM dd");
+            case "weekly" -> DateTimeFormatter.ofPattern("'Week' w");
+            case "yearly" -> DateTimeFormatter.ofPattern("yyyy");
+            default       -> DateTimeFormatter.ofPattern("MMM yy");
+        };
+    }
+
+    private List<FailureTrendResponse> getDefaultFailureTrend(String period) {
+        return List.of(
+                new FailureTrendResponse("Jan 26", 10.0),
+                new FailureTrendResponse("Feb 26", 8.0)
+        );
+    }
+
     private static class SensorTrendBuilder {
         String time;
         Double temperature, vibration, pressure;
@@ -240,24 +255,5 @@ public class DashboardServiceImpl implements DashboardService {
                 new SensorTrendResponse("16:00", 76.0, 0.26, 97.0),
                 new SensorTrendResponse("20:00", 73.0, 0.23, 96.0)
         );
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<AIInsightResponse> getAIInsights() {
-        return predictionRepository.findAll().stream()
-                .filter(p -> p.getMachine() != null)
-                .sorted(Comparator.comparing(p -> ((Prediction) p).getPredictedAt()).reversed())
-                .limit(5)
-                .map(p -> new AIInsightResponse(
-                        p.getId(),
-                        p.getMachine().getId(),
-                        p.getMachine().getName(),
-                        p.getMachine().getAssetId(),
-                        p.getExplanation(),
-                        p.getSeverity() != null ? p.getSeverity().name().toLowerCase() : "low",
-                        p.getFailureProbability() != null ? p.getFailureProbability().doubleValue() : 0.0
-                ))
-                .toList();
     }
 }

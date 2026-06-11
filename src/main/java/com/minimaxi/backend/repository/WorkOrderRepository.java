@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     List<WorkOrder> findByMachineIdOrderByCreatedAtDesc(Long machineId);
+    List<WorkOrder> findByMachine_OrganizationId(Long organizationId);
 }

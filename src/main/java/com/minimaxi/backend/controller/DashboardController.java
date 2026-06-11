@@ -1,7 +1,9 @@
 package com.minimaxi.backend.controller;
 
+import com.minimaxi.backend.config.JwtUtil;
 import com.minimaxi.backend.dto.response.*;
 import com.minimaxi.backend.service.DashboardService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -11,40 +13,45 @@ import java.util.List;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final JwtUtil jwtUtil;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService, JwtUtil jwtUtil) {
         this.dashboardService = dashboardService;
+        this.jwtUtil = jwtUtil;
     }
 
-    // Frontend calls: GET /api/dashboard/stats  ✅
+    // helper يستخرج الـ organizationId من الـ Authorization header
+    private Long extractOrgId(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        String token = header.substring(7); // يشيل "Bearer "
+        return jwtUtil.extractOrganizationId(token);
+    }
+
     @GetMapping("/stats")
-    public DashboardStatsResponse getStats() {
-        return dashboardService.getStats();
+    public DashboardStatsResponse getStats(HttpServletRequest request) {
+        return dashboardService.getStats(extractOrgId(request));
     }
 
-    // Frontend calls: GET /api/dashboard/health-distribution  ✅
     @GetMapping("/health-distribution")
-    public List<HealthDistributionResponse> getHealthDistribution() {
-        return dashboardService.getHealthDistribution();
+    public List<HealthDistributionResponse> getHealthDistribution(HttpServletRequest request) {
+        return dashboardService.getHealthDistribution(extractOrgId(request));
     }
 
-    // Frontend calls: GET /api/dashboard/failure-trend?period=monthly  ✅
     @GetMapping("/failure-trend")
     public List<FailureTrendResponse> getFailureTrend(
-            @RequestParam(required = false, defaultValue = "monthly") String period
+            @RequestParam(required = false, defaultValue = "monthly") String period,
+            HttpServletRequest request
     ) {
-        return dashboardService.getFailureTrend(period);
+        return dashboardService.getFailureTrend(period, extractOrgId(request));
     }
 
-    // Frontend calls: GET /api/dashboard/sensor-trends  ✅
     @GetMapping("/sensor-trends")
-    public List<SensorTrendResponse> getSensorTrends() {
-        return dashboardService.getSensorTrends();
+    public List<SensorTrendResponse> getSensorTrends(HttpServletRequest request) {
+        return dashboardService.getSensorTrends(extractOrgId(request));
     }
 
-    // Frontend calls: GET /api/dashboard/ai-insights  ✅
     @GetMapping("/ai-insights")
-    public List<AIInsightResponse> getAIInsights() {
-        return dashboardService.getAIInsights();
+    public List<AIInsightResponse> getAIInsights(HttpServletRequest request) {
+        return dashboardService.getAIInsights(extractOrgId(request));
     }
 }

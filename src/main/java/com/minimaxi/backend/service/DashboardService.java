@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface DashboardService {
 
-    DashboardStatsResponse getStats();
+    /*DashboardStatsResponse getStats();
 
     List<HealthDistributionResponse> getHealthDistribution();
 
@@ -15,4 +15,13 @@ public interface DashboardService {
     List<SensorTrendResponse> getSensorTrends();
 
     List<AIInsightResponse> getAIInsights();
+
+    */
+
+
+    DashboardStatsResponse getStats(Long organizationId);
+    List<HealthDistributionResponse> getHealthDistribution(Long organizationId);
+    List<FailureTrendResponse> getFailureTrend(String period, Long organizationId);
+    List<SensorTrendResponse> getSensorTrends(Long organizationId);
+    List<AIInsightResponse> getAIInsights(Long organizationId);
 }
