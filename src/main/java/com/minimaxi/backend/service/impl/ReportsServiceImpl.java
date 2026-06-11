@@ -38,16 +38,14 @@ public class ReportsServiceImpl implements ReportsService {
 
         var allWorkOrders = workOrderRepository.findAll().stream()
                 .filter(wo -> organizationId == null ||
-                        (wo.getMachine() != null &&
-                                wo.getMachine().getOrganization() != null &&
-                                wo.getMachine().getOrganization().getId().equals(organizationId)))
+                        (wo.getOrganization() != null &&
+                                wo.getOrganization().getId().equals(organizationId)))
                 .toList();
 
         var allPredictions = predictionRepository.findAll().stream()
                 .filter(p -> organizationId == null ||
-                        (p.getMachine() != null &&
-                                p.getMachine().getOrganization() != null &&
-                                p.getMachine().getOrganization().getId().equals(organizationId)))
+                        (p.getOrganization() != null &&
+                                p.getOrganization().getId().equals(organizationId)))
                 .toList();
 
         DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("MMM")
