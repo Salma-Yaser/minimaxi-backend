@@ -22,9 +22,12 @@ public class MaintenanceServiceImpl implements MaintenanceService {
 
     @Override
     @Transactional
-    public List<MaintenanceEventResponse> getMaintenanceEvents(int month, int year) {
-        // بنجيب work orders اللي الـ due_date بتاعها في الـ month/year المطلوب
+    public List<MaintenanceEventResponse> getMaintenanceEvents(int month, int year, Long organizationId) {
         var workOrders = workOrderRepository.findAll().stream()
+                .filter(wo -> organizationId == null ||
+                        (wo.getMachine() != null &&
+                                wo.getMachine().getOrganization() != null &&
+                                wo.getMachine().getOrganization().getId().equals(organizationId)))
                 .filter(wo -> wo.getDueDate() != null
                         && wo.getDueDate().getMonthValue() == month
                         && wo.getDueDate().getYear() == year)

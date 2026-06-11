@@ -5,5 +5,5 @@ import com.minimaxi.backend.dto.response.MaintenanceEventResponse;
 import java.util.List;
 
 public interface MaintenanceService {
-    List<MaintenanceEventResponse> getMaintenanceEvents(int month, int year);
+    List<MaintenanceEventResponse> getMaintenanceEvents(int month, int year, Long organizationId);
 }
