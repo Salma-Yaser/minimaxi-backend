@@ -13,4 +13,5 @@ public interface AuthService {
     Map<String, Object> forgotPassword(String email);
     Map<String, Object> resetPassword(String email, String otp, String newPassword);
     Map<String, Object> activateInvitedUser(String token, String password);
+
 }

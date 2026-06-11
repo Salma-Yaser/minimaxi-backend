@@ -195,7 +195,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public Map<String, Object> activateInvitedUser(String token, String password) {
-        // ✅ تحقق من الـ token
+
         if (!jwtUtil.isTokenValid(token)) {
             throw new RuntimeException("Invalid or expired token");
         }
@@ -209,12 +209,11 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("User is already activated");
         }
 
-        // ✅ حفظ الباسورد وتغيير الـ status
+        // ✅ نفس منطق activateAccount — بس بدون organization جديدة
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setStatus(UserStatus.ACTIVE);
         appUserRepository.save(user);
 
-        // ✅ ولّدي token جديد للـ login التلقائي
         String newToken = jwtUtil.generateToken(
                 user.getId(),
                 user.getEmail(),
@@ -226,11 +225,11 @@ public class AuthServiceImpl implements AuthService {
                 "success", true,
                 "token", newToken,
                 "user", Map.of(
-                        "id", user.getId(),
-                        "name", user.getFullName(),
-                        "email", user.getEmail(),
-                        "role", user.getRole().name().toLowerCase(),
-                        "status", user.getStatus().name().toLowerCase(),
+                        "id",        user.getId(),
+                        "name",      user.getFullName(),
+                        "email",     user.getEmail(),
+                        "role",      user.getRole().name().toLowerCase(),
+                        "status",    user.getStatus().name().toLowerCase(),
                         "companyId", user.getOrganization().getId()
                 )
         );
