@@ -176,6 +176,9 @@ public class MachineServiceImpl implements MachineService {
 
         Machine saved = machineRepository.save(machine);
         saved.setAssetId("MCH-" + saved.getId());
+        saved.setGatewayUrl(
+                "https://minimaxi-backend-production-3500.up.railway.app/api/gateway/assets/" + saved.getAssetId() + "/readings"
+        );
         saved = machineRepository.save(saved);
 
         return MachineMapper.toResponse(saved);

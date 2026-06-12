@@ -45,7 +45,7 @@ public class PredictionScheduler {
 
         for (Machine machine : machines) {
             try {
-                List<Double> data = sensorGenerator.generate(machine);
+                List<Double> data = fetchFromGateway(machine);
 
                 Map<String, Object> requestBody = Map.of("data", data);
                 Map response = restTemplate.postForObject(AI_URL, requestBody, Map.class);
@@ -58,6 +58,28 @@ public class PredictionScheduler {
             } catch (Exception e) {
                 System.err.println("Failed for: " + machine.getName() + " - " + e.getMessage());
             }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Double> fetchFromGateway(Machine machine) {
+        if (machine.getGatewayUrl() == null || machine.getGatewayUrl().isBlank()) {
+            return sensorGenerator.generate(machine);
+        }
+
+        try {
+            Map response = restTemplate.getForObject(machine.getGatewayUrl(), Map.class);
+            if (response == null) return sensorGenerator.generate(machine);
+
+            Map<String, Object> aiPayload = (Map<String, Object>) response.get("aiPayload");
+            List<Number> rawData = (List<Number>) aiPayload.get("data");
+
+            return rawData.stream()
+                    .map(Number::doubleValue)
+                    .toList();
+        } catch (Exception e) {
+            System.err.println("Gateway fetch failed for " + machine.getName() + ", falling back: " + e.getMessage());
+            return sensorGenerator.generate(machine);
         }
     }
 
