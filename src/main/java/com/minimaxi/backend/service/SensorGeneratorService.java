@@ -20,9 +20,12 @@ public class SensorGeneratorService {
                 ? machine.getCriticality().name().toLowerCase() : "medium";
 
         double sf = 1.0;
-        if ("critical".equals(status))     sf = 1.4;
-        else if ("warning".equals(status)) sf = 1.2;
-        if ("high".equals(criticality))    sf += 0.1;
+        if ("critical".equals(status))     sf = 1.8;
+        else if ("warning".equals(status)) sf = 1.35;
+        else                                sf = 0.85; // healthy
+
+        if ("high".equals(criticality))    sf += 0.25;
+        else if ("medium".equals(criticality)) sf += 0.1;
 
         long timeSlot = System.currentTimeMillis() / 30000;
         Random r = new Random(assetId.hashCode() + timeSlot);
