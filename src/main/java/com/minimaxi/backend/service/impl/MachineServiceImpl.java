@@ -278,7 +278,6 @@ public class MachineServiceImpl implements MachineService {
 
             result.add(new SensorHistoryResponse(ts.toString(), values));
         }
-
         return result;
     }
 

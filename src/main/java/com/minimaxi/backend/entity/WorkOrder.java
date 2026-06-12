@@ -81,6 +81,6 @@ public class WorkOrder {
     @Column(name = "status", nullable = false)
     private WorkOrderStatus status;
 
-    @OneToOne(mappedBy = "workOrder", fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "workOrder", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private WorkOrderCompletion completion;
 }
