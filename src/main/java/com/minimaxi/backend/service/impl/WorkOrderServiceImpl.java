@@ -9,17 +9,12 @@ import com.minimaxi.backend.entity.WorkOrder;
 import com.minimaxi.backend.enums.WorkOrderPriority;
 import com.minimaxi.backend.enums.WorkOrderStatus;
 import com.minimaxi.backend.mapper.WorkOrderMapper;
-import com.minimaxi.backend.repository.AppUserRepository;
-import com.minimaxi.backend.repository.IssueRepository;
-import com.minimaxi.backend.repository.MachineRepository;
-import com.minimaxi.backend.repository.OrganizationRepository;
-import com.minimaxi.backend.repository.WorkOrderRepository;
+import com.minimaxi.backend.repository.*;
 import com.minimaxi.backend.service.WorkOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.minimaxi.backend.dto.request.CompleteWorkOrderRequest;
 import com.minimaxi.backend.entity.WorkOrderCompletion;
-import com.minimaxi.backend.repository.WorkOrderCompletionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 
@@ -31,15 +26,14 @@ import java.util.UUID;
 
 @Service
 public class WorkOrderServiceImpl implements WorkOrderService {
-
     private final WorkOrderRepository workOrderRepository;
     private final OrganizationRepository organizationRepository;
     private final MachineRepository machineRepository;
     private final AppUserRepository appUserRepository;
     private final IssueRepository issueRepository;
     private final WorkOrderCompletionRepository workOrderCompletionRepository;
+    private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
 
     public WorkOrderServiceImpl(
             WorkOrderRepository workOrderRepository,
@@ -47,7 +41,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             MachineRepository machineRepository,
             AppUserRepository appUserRepository,
             IssueRepository issueRepository,
-            WorkOrderCompletionRepository workOrderCompletionRepository
+            WorkOrderCompletionRepository workOrderCompletionRepository,
+            NotificationRepository notificationRepository
     ) {
         this.workOrderRepository = workOrderRepository;
         this.organizationRepository = organizationRepository;
@@ -55,6 +50,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         this.appUserRepository = appUserRepository;
         this.issueRepository = issueRepository;
         this.workOrderCompletionRepository = workOrderCompletionRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Override
@@ -167,10 +163,24 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     @Override
     @Transactional
     public void deleteWorkOrder(Long id) {
-        if (!workOrderRepository.existsById(id)) {
-            throw new RuntimeException("Work order not found with id: " + id);
+        WorkOrder workOrder = workOrderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Work order not found with id: " + id));
+
+        notificationRepository.deleteAll(
+                notificationRepository.findAll().stream()
+                        .filter(n -> n.getWorkOrder() != null && n.getWorkOrder().getId().equals(id))
+                        .toList()
+        );
+
+        try {
+            workOrderRepository.delete(workOrder);
+            workOrderRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalStateException("Cannot delete work order with id " + id +
+                    " because it has related records. Please delete related notes and completions first.");
+
+
         }
-        workOrderRepository.deleteById(id);
     }
 
     @Override
