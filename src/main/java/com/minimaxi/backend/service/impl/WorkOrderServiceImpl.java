@@ -149,7 +149,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         if (request.getStatus() != null) {
             WorkOrderStatus newStatus = WorkOrderStatus.valueOf(request.getStatus().toUpperCase());
             workOrder.setStatus(newStatus);
-            if (newStatus == WorkOrderStatus.COMPLETED || newStatus == WorkOrderStatus.CLOSED) {
+            if (newStatus == WorkOrderStatus.COMPLETED || newStatus == WorkOrderStatus.CLOSED || newStatus == WorkOrderStatus.CANCELLED) {
                 workOrder.setClosedAt(Instant.now());
             }
         }

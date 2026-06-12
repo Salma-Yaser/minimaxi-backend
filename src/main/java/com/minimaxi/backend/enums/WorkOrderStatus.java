@@ -5,5 +5,6 @@ public enum WorkOrderStatus {
     ASSIGNED,
     IN_PROGRESS,
     COMPLETED,
-    CLOSED
+    CLOSED,
+    CANCELLED
 }
