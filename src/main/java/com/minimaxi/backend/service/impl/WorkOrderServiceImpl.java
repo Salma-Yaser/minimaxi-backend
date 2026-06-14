@@ -6,10 +6,12 @@ import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
 import com.minimaxi.backend.entity.WorkOrder;
+import com.minimaxi.backend.enums.NotificationType;
 import com.minimaxi.backend.enums.WorkOrderPriority;
 import com.minimaxi.backend.enums.WorkOrderStatus;
 import com.minimaxi.backend.mapper.WorkOrderMapper;
 import com.minimaxi.backend.repository.*;
+import com.minimaxi.backend.service.NotificationService;
 import com.minimaxi.backend.service.WorkOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +36,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     private final WorkOrderCompletionRepository workOrderCompletionRepository;
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
+    private final NotificationService notificationService;
     public WorkOrderServiceImpl(
             WorkOrderRepository workOrderRepository,
             OrganizationRepository organizationRepository,
@@ -42,7 +44,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             AppUserRepository appUserRepository,
             IssueRepository issueRepository,
             WorkOrderCompletionRepository workOrderCompletionRepository,
-            NotificationRepository notificationRepository
+            NotificationRepository notificationRepository,
+            NotificationService notificationService
     ) {
         this.workOrderRepository = workOrderRepository;
         this.organizationRepository = organizationRepository;
@@ -51,6 +54,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         this.issueRepository = issueRepository;
         this.workOrderCompletionRepository = workOrderCompletionRepository;
         this.notificationRepository = notificationRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -125,7 +129,19 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                         : WorkOrderStatus.OPEN
         );
 
-        return WorkOrderMapper.toResponse(workOrderRepository.save(workOrder));
+        WorkOrder saved = workOrderRepository.save(workOrder);
+
+        if (saved.getAssignedToUser() != null) {
+            notificationService.notifyWorkOrderEvent(
+                    saved,
+                    saved.getAssignedToUser(),
+                    NotificationType.NEW_WORK_ORDER,
+                    "New Work Order Assigned",
+                    "New work order assigned: " + saved.getTitle()
+            );
+        }
+
+        return WorkOrderMapper.toResponse(saved);
     }
 
     @Override
@@ -143,10 +159,32 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         }
 
         if (request.getStatus() != null) {
+            WorkOrderStatus oldStatus = workOrder.getStatus();
             WorkOrderStatus newStatus = WorkOrderStatus.valueOf(request.getStatus().toUpperCase());
             workOrder.setStatus(newStatus);
+
             if (newStatus == WorkOrderStatus.COMPLETED || newStatus == WorkOrderStatus.CLOSED || newStatus == WorkOrderStatus.CANCELLED) {
                 workOrder.setClosedAt(Instant.now());
+            }
+
+            if (newStatus == WorkOrderStatus.CANCELLED) {
+                notificationService.notifyWorkOrderEvent(
+                        workOrder,
+                        workOrder.getAssignedToUser(),
+                        NotificationType.WO_STATUS_CHANGED,
+                        "Work Order Cancelled",
+                        "Work order cancelled: " + workOrder.getTitle()
+                );
+            }
+
+            if (oldStatus == WorkOrderStatus.OPEN && newStatus == WorkOrderStatus.IN_PROGRESS) {
+                notificationService.notifyWorkOrderEvent(
+                        workOrder,
+                        workOrder.getCreatedByUser(),
+                        NotificationType.WO_STATUS_CHANGED,
+                        "Work Order Started",
+                        "Technician started work on: " + workOrder.getTitle()
+                );
             }
         }
 
@@ -159,7 +197,6 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
         return WorkOrderMapper.toResponse(workOrderRepository.save(workOrder));
     }
-
     @Override
     @Transactional
     public void deleteWorkOrder(Long id) {
@@ -236,8 +273,20 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         // تحديث الـ work order status
         workOrder.setStatus(WorkOrderStatus.COMPLETED);
         workOrder.setClosedAt(Instant.now());
-        workOrderRepository.save(workOrder);
-    }
 
+        workOrderRepository.save(workOrder);
+
+        workOrder.setStatus(WorkOrderStatus.COMPLETED);
+        workOrder.setClosedAt(Instant.now());
+        workOrderRepository.save(workOrder);
+
+        notificationService.notifyWorkOrderEvent(
+                workOrder,
+                workOrder.getCreatedByUser(),
+                NotificationType.WO_STATUS_CHANGED,
+                "Work Order Completed",
+                "Work order completed: " + workOrder.getTitle()
+        );
+    }
 
 }

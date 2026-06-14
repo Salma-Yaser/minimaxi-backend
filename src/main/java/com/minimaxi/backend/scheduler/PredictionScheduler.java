@@ -11,7 +11,7 @@ import com.minimaxi.backend.service.SensorGeneratorService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
+import com.minimaxi.backend.service.NotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +23,7 @@ public class PredictionScheduler {
     private final MachineRepository machineRepository;
     private final PredictionRepository predictionRepository;
     private final SensorGeneratorService sensorGenerator;
+    private final NotificationService notificationService;
     private final RestTemplate restTemplate;
 
     private static final String AI_URL =
@@ -30,10 +31,12 @@ public class PredictionScheduler {
 
     public PredictionScheduler(MachineRepository machineRepository,
                                PredictionRepository predictionRepository,
-                               SensorGeneratorService sensorGenerator) {
+                               SensorGeneratorService sensorGenerator,
+                               NotificationService notificationService) {
         this.machineRepository = machineRepository;
         this.predictionRepository = predictionRepository;
         this.sensorGenerator = sensorGenerator;
+        this.notificationService = notificationService;
         this.restTemplate = new RestTemplate();
     }
 
@@ -106,6 +109,10 @@ public class PredictionScheduler {
 
         predictionRepository.save(prediction);
         updateMachineStatus(machine, riskLevel);
+
+        if (prediction.getSeverity() == PredictionSeverity.CRITICAL) {
+            notificationService.notifyCriticalPrediction(prediction);
+        }
     }
 
     private PredictionSeverity mapRiskToSeverity(Integer riskLevel) {
