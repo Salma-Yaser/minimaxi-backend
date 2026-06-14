@@ -229,6 +229,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         completion.setRootCause(request.getRootCause());
         completion.setTimeSpentMinutes(totalMinutes);
         completion.setAdditionalNotes(request.getAdditionalNotes());
+        completion.setSpareParts(sparePartsJson);
         completion.setCompletedAt(Instant.now());
         workOrderCompletionRepository.save(completion);
 
