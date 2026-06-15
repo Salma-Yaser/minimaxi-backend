@@ -237,11 +237,8 @@ public class MachineServiceImpl implements MachineService {
             issueRepository.deleteAll(issues);
 
             // 5. notifications المرتبطة بالـ predictions، ثم الـ predictions نفسها
-            List<Prediction> predictions = predictionRepository.findByMachineId(id);
-            for (Prediction p : predictions) {
-                notificationRepository.deleteByPredictionId(p.getId());
-            }
-            predictionRepository.deleteAll(predictions);
+            notificationRepository.deleteByPredictionMachineId(id);
+            predictionRepository.deleteByMachineIdDirect(id);
 
             // 6. sensor readings + sensors
             sensorReadingRepository.deleteBySensorMachineId(id);
