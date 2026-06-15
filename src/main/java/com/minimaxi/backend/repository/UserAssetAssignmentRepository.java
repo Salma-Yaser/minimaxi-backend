@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface UserAssetAssignmentRepository extends JpaRepository<UserAssetAssignment, Long> {
     List<UserAssetAssignment> findByMachineId(Long machineId);
+    void deleteByMachineId(Long machineId);
 }

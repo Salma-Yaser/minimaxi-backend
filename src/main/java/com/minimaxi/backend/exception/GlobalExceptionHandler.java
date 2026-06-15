@@ -13,12 +13,24 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        String message = ex.getMessage();
+
+        if (message != null && message.startsWith("MACHINE_HAS_DEPENDENCIES:")) {
+            String[] parts = message.split(":");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "status", 409,
+                    "code", "MACHINE_HAS_DEPENDENCIES",
+                    "message", "Cannot delete machine: it has related work orders and/or issues.",
+                    "workOrdersCount", Integer.parseInt(parts[1]),
+                    "issuesCount", Integer.parseInt(parts[2])
+            ));
+        }
+
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "status", 400,
-                "message", ex.getMessage()
+                "message", message
         ));
     }
-
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(

@@ -65,8 +65,11 @@ public class MachineController {
     }
 
     @DeleteMapping("/{id}")
-    public Map<String, Object> deleteMachine(@PathVariable Long id) {
-        machineService.deleteMachine(id);
+    public Map<String, Object> deleteMachine(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean force
+    ) {
+        machineService.deleteMachine(id, force);
         return Map.of("success", true);
     }
 

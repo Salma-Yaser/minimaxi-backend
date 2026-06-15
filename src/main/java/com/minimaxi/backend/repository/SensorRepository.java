@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface SensorRepository extends JpaRepository<Sensor, Long> {
     List<Sensor> findByMachineId(Long machineId);
+    void deleteByMachineId(Long machineId);
 }

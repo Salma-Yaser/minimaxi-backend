@@ -17,12 +17,10 @@ public interface MachineService {
     MachineResponse createMachine(CreateMachineRequest request);
 
     MachineResponse updateMachine(Long id, UpdateMachineRequest request);
-
-    void deleteMachine(Long id);
-
     List<SensorHistoryResponse> getSensorHistory(Long machineId, Integer hours);
 
     List<Map<String, Object>> getMachineIssues(Long machineId);
     List<Map<String, Object>> getMachineWorkOrders(Long machineId);
     List<Map<String, Object>> getMachineNotes(Long machineId);
+    void deleteMachine(Long id, boolean force);
 }

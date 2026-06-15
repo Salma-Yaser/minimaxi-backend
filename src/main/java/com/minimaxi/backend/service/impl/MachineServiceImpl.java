@@ -9,20 +9,13 @@ import com.minimaxi.backend.entity.Machine;
 import com.minimaxi.backend.enums.MachineCriticality;
 import com.minimaxi.backend.enums.MachineStatus;
 import com.minimaxi.backend.mapper.MachineMapper;
-import com.minimaxi.backend.repository.MachineRepository;
-import com.minimaxi.backend.repository.OrganizationRepository;
-import com.minimaxi.backend.repository.PredictionRepository;
-import com.minimaxi.backend.repository.SensorReadingRepository;
-import com.minimaxi.backend.repository.SensorRepository;
+import com.minimaxi.backend.repository.*;
 import com.minimaxi.backend.service.MachineService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.minimaxi.backend.entity.Issue;
 import com.minimaxi.backend.entity.WorkOrder;
 import com.minimaxi.backend.entity.WorkOrderCompletion;
-import com.minimaxi.backend.repository.IssueRepository;
-import com.minimaxi.backend.repository.WorkOrderRepository;
-import com.minimaxi.backend.repository.WorkOrderCompletionRepository;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,10 +33,11 @@ public class MachineServiceImpl implements MachineService {
     private final PredictionRepository predictionRepository;
     private final SensorReadingRepository sensorReadingRepository;
     private final OrganizationRepository organizationRepository;
-
     private final IssueRepository issueRepository;
     private final WorkOrderRepository workOrderRepository;
     private final WorkOrderCompletionRepository workOrderCompletionRepository;
+    private final NotificationRepository notificationRepository;
+    private final UserAssetAssignmentRepository userAssetAssignmentRepository;
 
     public MachineServiceImpl(
             MachineRepository machineRepository,
@@ -53,7 +47,9 @@ public class MachineServiceImpl implements MachineService {
             OrganizationRepository organizationRepository,
             IssueRepository issueRepository,
             WorkOrderRepository workOrderRepository,
-            WorkOrderCompletionRepository workOrderCompletionRepository
+            WorkOrderCompletionRepository workOrderCompletionRepository,
+            NotificationRepository notificationRepository,
+            UserAssetAssignmentRepository userAssetAssignmentRepository
     ) {
         this.machineRepository = machineRepository;
         this.sensorRepository = sensorRepository;
@@ -63,8 +59,9 @@ public class MachineServiceImpl implements MachineService {
         this.issueRepository = issueRepository;
         this.workOrderRepository = workOrderRepository;
         this.workOrderCompletionRepository = workOrderCompletionRepository;
+        this.notificationRepository = notificationRepository;
+        this.userAssetAssignmentRepository = userAssetAssignmentRepository;
     }
-
     @Transactional(readOnly = true)
     @Override
     public List<MachineResponse> getAllMachines(Long organizationId, String type, String location, String status, String search) {
@@ -206,11 +203,57 @@ public class MachineServiceImpl implements MachineService {
     }
 
     @Override
-    public void deleteMachine(Long id) {
-        if (!machineRepository.existsById(id)) {
-            throw new RuntimeException("Machine not found");
+    @Transactional
+    public void deleteMachine(Long id, boolean force) {
+        Machine machine = machineRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Machine not found"));
+
+        List<WorkOrder> workOrders = workOrderRepository.findByMachineIdOrderByCreatedAtDesc(id);
+        List<Issue> issues = issueRepository.findByMachineIdOrderByCreatedAtDesc(id);
+
+        if (!force && (!workOrders.isEmpty() || !issues.isEmpty())) {
+            throw new IllegalStateException(
+                    "MACHINE_HAS_DEPENDENCIES:" + workOrders.size() + ":" + issues.size()
+            );
         }
-        machineRepository.deleteById(id);
+
+        if (force) {
+            // 1. حذف work order completions المرتبطة بالـ work orders
+            for (WorkOrder wo : workOrders) {
+                workOrderCompletionRepository.findByMachineId(id); // لو عايزة، أو نمسح عبر wo.getCompletion()
+            }
+            // الأسهل: نمسح الـ completions اللي ليها workOrder من القائمة
+            List<Long> woIds = workOrders.stream().map(WorkOrder::getId).toList();
+            for (WorkOrder wo : workOrders) {
+                if (wo.getCompletion() != null) {
+                    workOrderCompletionRepository.delete(wo.getCompletion());
+                }
+            }
+
+            // 2. حذف notifications المرتبطة بالـ machine أو work orders
+            notificationRepository.deleteByMachineId(id);
+            for (Long woId : woIds) {
+                notificationRepository.deleteByWorkOrderId(woId);
+            }
+
+            // 3. حذف work orders
+            workOrderRepository.deleteAll(workOrders);
+
+            // 4. حذف issues
+            issueRepository.deleteAll(issues);
+
+            // 5. حذف predictions
+            predictionRepository.deleteByMachineId(id);
+
+            // 6. حذف sensor readings + sensors
+            sensorReadingRepository.deleteByMachineId(id);
+            sensorRepository.deleteByMachineId(id);
+
+            // 7. حذف user_asset_assignment
+            userAssetAssignmentRepository.deleteByMachineId(id);
+        }
+
+        machineRepository.delete(machine);
     }
 
     @Transactional(readOnly = true)
