@@ -246,7 +246,7 @@ public class MachineServiceImpl implements MachineService {
             predictionRepository.deleteByMachineId(id);
 
             // 6. حذف sensor readings + sensors
-            sensorReadingRepository.deleteByMachineId(id);
+            sensorReadingRepository.deleteBySensorMachineId(id);
             sensorRepository.deleteByMachineId(id);
 
             // 7. حذف user_asset_assignment

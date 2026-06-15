@@ -10,7 +10,8 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
 
     List<SensorReading> findBySensorMachineIdOrderByReadingTimeDesc(Long machineId);
 
-    void deleteByMachineId(Long machineId);
+
+    void deleteBySensorMachineId(Long machineId);
     List<SensorReading> findBySensor_Machine_OrganizationId(Long organizationId);
     List<SensorReading> findBySensorMachineIdAndReadingTimeAfterOrderByReadingTimeAsc(
             Long machineId,
