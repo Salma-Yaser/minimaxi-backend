@@ -12,6 +12,7 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
     Optional<Prediction> findTopByMachineIdOrderByPredictedAtDesc(Long machineId);
 
     void deleteByMachineId(Long machineId);
+    List<Prediction> findByMachineId(Long machineId);
     List<Prediction> findByMachine_OrganizationId(Long organizationId);
     interface SensorReadingRepository extends JpaRepository<SensorReading, Long> {
 

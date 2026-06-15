@@ -5,7 +5,7 @@ import com.minimaxi.backend.dto.request.UpdateMachineRequest;
 import com.minimaxi.backend.dto.response.MachinePredictionResponse;
 import com.minimaxi.backend.dto.response.MachineResponse;
 import com.minimaxi.backend.dto.response.SensorHistoryResponse;
-import com.minimaxi.backend.entity.Machine;
+import com.minimaxi.backend.entity.*;
 import com.minimaxi.backend.enums.MachineCriticality;
 import com.minimaxi.backend.enums.MachineStatus;
 import com.minimaxi.backend.mapper.MachineMapper;
@@ -13,9 +13,6 @@ import com.minimaxi.backend.repository.*;
 import com.minimaxi.backend.service.MachineService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.minimaxi.backend.entity.Issue;
-import com.minimaxi.backend.entity.WorkOrder;
-import com.minimaxi.backend.entity.WorkOrderCompletion;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -218,38 +215,39 @@ public class MachineServiceImpl implements MachineService {
         }
 
         if (force) {
-            // 1. حذف work order completions المرتبطة بالـ work orders
-            for (WorkOrder wo : workOrders) {
-                workOrderCompletionRepository.findByMachineId(id); // لو عايزة، أو نمسح عبر wo.getCompletion()
-            }
-            // الأسهل: نمسح الـ completions اللي ليها workOrder من القائمة
             List<Long> woIds = workOrders.stream().map(WorkOrder::getId).toList();
+
+            // 1. work order completions
             for (WorkOrder wo : workOrders) {
                 if (wo.getCompletion() != null) {
                     workOrderCompletionRepository.delete(wo.getCompletion());
                 }
             }
 
-            // 2. حذف notifications المرتبطة بالـ machine أو work orders
+            // 2. notifications المرتبطة بالـ machine أو work orders
             notificationRepository.deleteByMachineId(id);
             for (Long woId : woIds) {
                 notificationRepository.deleteByWorkOrderId(woId);
             }
 
-            // 3. حذف work orders
+            // 3. work orders
             workOrderRepository.deleteAll(workOrders);
 
-            // 4. حذف issues
+            // 4. issues
             issueRepository.deleteAll(issues);
 
-            // 5. حذف predictions
-            predictionRepository.deleteByMachineId(id);
+            // 5. notifications المرتبطة بالـ predictions، ثم الـ predictions نفسها
+            List<Prediction> predictions = predictionRepository.findByMachineId(id);
+            for (Prediction p : predictions) {
+                notificationRepository.deleteByPredictionId(p.getId());
+            }
+            predictionRepository.deleteAll(predictions);
 
-            // 6. حذف sensor readings + sensors
+            // 6. sensor readings + sensors
             sensorReadingRepository.deleteBySensorMachineId(id);
             sensorRepository.deleteByMachineId(id);
 
-            // 7. حذف user_asset_assignment
+            // 7. user_asset_assignment
             userAssetAssignmentRepository.deleteByMachineId(id);
         }
 

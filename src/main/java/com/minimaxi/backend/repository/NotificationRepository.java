@@ -9,4 +9,5 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByRecipientUserIdOrderByCreatedAtDesc(Long recipientUserId);
     void deleteByMachineId(Long machineId);
     void deleteByWorkOrderId(Long workOrderId);
+    void deleteByPredictionId(Long predictionId);
 }

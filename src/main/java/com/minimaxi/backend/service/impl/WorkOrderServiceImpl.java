@@ -5,6 +5,7 @@ import com.minimaxi.backend.dto.request.CreateWorkOrderRequest;
 import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
+import com.minimaxi.backend.entity.AppUser;
 import com.minimaxi.backend.entity.WorkOrder;
 import com.minimaxi.backend.enums.NotificationType;
 import com.minimaxi.backend.enums.WorkOrderPriority;
@@ -189,10 +190,22 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         }
 
         if (request.getAssignedToUserId() != null) {
-            workOrder.setAssignedToUser(
-                    appUserRepository.findById(request.getAssignedToUserId())
-                            .orElseThrow(() -> new RuntimeException("Assigned user not found"))
-            );
+            AppUser oldAssignee = workOrder.getAssignedToUser();
+            AppUser newAssignee = appUserRepository.findById(request.getAssignedToUserId())
+                    .orElseThrow(() -> new RuntimeException("Assigned user not found"));
+
+            workOrder.setAssignedToUser(newAssignee);
+
+            boolean isReassignment = oldAssignee == null || !oldAssignee.getId().equals(newAssignee.getId());
+            if (isReassignment) {
+                notificationService.notifyWorkOrderEvent(
+                        workOrder,
+                        newAssignee,
+                        NotificationType.NEW_WORK_ORDER,
+                        "Work Order Assigned",
+                        "Work order assigned to you: " + workOrder.getTitle()
+                );
+            }
         }
 
         return WorkOrderMapper.toResponse(workOrderRepository.save(workOrder));
