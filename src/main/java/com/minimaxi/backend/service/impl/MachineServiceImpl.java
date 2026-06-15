@@ -233,10 +233,13 @@ public class MachineServiceImpl implements MachineService {
             // 3. work orders
             workOrderRepository.deleteAll(workOrders);
 
-            // 4. issues
+            // 4. issues (المرتبطة مباشرة بالماكينة عبر machine_id)
             issueRepository.deleteAll(issues);
 
-            // 5. notifications المرتبطة بالـ predictions، ثم الـ predictions نفسها
+// 4.5 issues المرتبطة بـ predictions هذه الماكينة (عبر issue.prediction_id)
+            issueRepository.deleteByPredictionMachineId(id);
+
+// 5. notifications المرتبطة بالـ predictions، ثم الـ predictions نفسها
             notificationRepository.deleteByPredictionMachineId(id);
             predictionRepository.deleteByMachineIdDirect(id);
 
