@@ -4,5 +4,6 @@ public enum NotificationType {
     PREDICTED_FAILURE,
     SENSOR_ALERT,
     NEW_WORK_ORDER,
-    WO_STATUS_CHANGED
+    WO_STATUS_CHANGED,
+    WO_REMINDER
 }
