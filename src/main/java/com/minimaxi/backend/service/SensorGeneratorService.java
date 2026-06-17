@@ -8,114 +8,97 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Generates 21 sensor readings aligned with the AI model's training data ranges.
- *
- * Strategy:
- *   - Each sensor has a "normal baseline" from the model's training data.
- *   - stress factor (sf) shifts values ABOVE normal to simulate degradation.
- *   - sf = 0.0 → perfectly healthy (values at baseline)
- *   - sf = 1.0 → clearly degraded  (values ~20-30% above baseline)
- *   - sf is derived from machine age + operating hours, NOT from status
- *     (avoids feedback loop where CRITICAL status → high sf → CRITICAL forever)
- */
 @Service
 public class SensorGeneratorService {
 
-    // ── Baseline = midpoint of training "normal" range ──────────────────────
-    // sensor_1..21 for CNC (only type we have exact ranges for)
-    private static final double[] CNC_BASE = {
-            518.67,   // s1  Temperature
-            642.56,   // s2  Pressure
-            1589.07,  // s3  Rotational Speed
-            1406.48,  // s4  Thermal Efficiency
-            14.62,    // s5  Airflow Dynamics          (fixed in training)
-            21.61,    // s6  Pressure Stability         (very tight range)
-            553.60,   // s7  Vibration
-            2388.08,  // s8  Temperature Stage          (very tight)
-            9061.35,  // s9  Efficiency Parameter
-            1.30,     // s10 Flow Variation             (fixed)
-            47.47,    // s11 Vibration Amplitude
-            521.61,   // s12 Pressure Ratio
-            2388.08,  // s13 Thermal Load               (very tight)
-            8141.02,  // s14 Mechanical Stress
-            8.43,     // s15 Turbine Behavior
-            0.030,    // s16 Air Intake Signal          (fixed)
-            392.83,   // s17 Pressure Fluctuation
-            2388.00,  // s18 Heat Dissipation           (fixed)
-            100.00,   // s19 Mechanical Oscillation     (fixed)
-            38.86,    // s20 System Efficiency
-            23.32     // s21 Dynamic Vibration
+    // Normal MAX values from training data (upper bound of healthy range)
+    private static final double[] NORMAL_MAX = {
+            518.67,   // s1
+            643.38,   // s2
+            1599.33,  // s3  ← key sensor (Engine Temperature)
+            1420.50,  // s4  ← key sensor (Compressor Pressure)
+            14.62,    // s5
+            21.61,    // s6
+            555.00,   // s7
+            2388.19,  // s8
+            9087.65,  // s9  ← key sensor (Vibration) - most sensitive!
+            1.30,     // s10
+            47.87,    // s11 ← key sensor (Fuel Flow)
+            522.76,   // s12
+            2388.19,  // s13
+            8164.33,  // s14 ← key sensor (Turbine Speed)
+            8.49,     // s15
+            0.030,    // s16
+            395.37,   // s17 ← key sensor (Oil Pressure)
+            2388.00,  // s18
+            100.00,   // s19
+            39.15,    // s20
+            23.49     // s21
     };
 
-    // Max deviation above baseline at sf=1.0 (tuned so model sees HIGH/CRITICAL)
-    // Sensors with very tight ranges get smaller deviation to stay realistic
-    private static final double[] CNC_DELTA = {
-            30.0,    // s1
-            8.0,     // s2
-            80.0,    // s3
-            80.0,    // s4
-            3.0,     // s5
-            0.5,     // s6  tight!
-            10.0,    // s7
-            1.0,     // s8  tight!
-            500.0,   // s9  model is very sensitive here
-            0.15,    // s10
-            8.0,     // s11
-            12.0,    // s12
-            1.0,     // s13 tight!
-            300.0,   // s14
-            2.0,     // s15
-            0.005,   // s16 tight!
-            25.0,    // s17
-            5.0,     // s18
-            2.0,     // s19
-            3.0,     // s20
-            2.0      // s21
+    // Normal MIN values from training data
+    private static final double[] NORMAL_MIN = {
+            518.67,   // s1
+            641.73,   // s2
+            1578.80,  // s3
+            1392.45,  // s4
+            14.62,    // s5
+            21.60,    // s6
+            552.19,   // s7
+            2387.96,  // s8
+            9035.03,  // s9
+            1.30,     // s10
+            47.05,    // s11
+            520.45,   // s12
+            2387.96,  // s13
+            8117.69,  // s14
+            8.37,     // s15
+            0.030,    // s16
+            390.28,   // s17
+            2388.00,  // s18
+            100.00,   // s19
+            38.56,    // s20
+            23.14     // s21
     };
 
     public List<Double> generate(Machine machine) {
         String assetId = machine.getAssetId() != null
                 ? machine.getAssetId() : "MCH-" + machine.getId();
-        String type = machine.getMachineType() != null
-                ? machine.getMachineType().toLowerCase() : "general";
         String criticality = machine.getCriticality() != null
                 ? machine.getCriticality().name().toLowerCase() : "medium";
 
-        // sf in [0.0 .. 1.0] — 0=healthy, 1=critical
+        // sf in [0.0 .. 1.0]
+        // 0.0 = داخل الـ normal range تماماً → LOW
+        // 0.3 = ~1% فوق الـ normal max    → MEDIUM
+        // 0.6+ = ~2%+ فوق الـ normal max  → HIGH
         double sf = computeStressFactor(machine, criticality);
 
-        // Seed changes every 10 min (aligned with scheduler)
         long timeSlot = System.currentTimeMillis() / 600000;
         Random r = new Random(assetId.hashCode() + timeSlot);
 
-        return generate21(type, sf, r);
+        return generate21(sf, r);
     }
 
-    /**
-     * sf based on age + operating hours — never on machine.status
-     * to avoid the feedback loop.
-     */
     private double computeStressFactor(Machine machine, String criticality) {
         double sfAge   = sfByAge(machine.getInstallationDate());
         double sfHours = sfByHours(machine);
-        double base    = Math.max(sfAge, sfHours);   // worst of the two wins
+        double base    = Math.max(sfAge, sfHours);
 
-        if ("high".equals(criticality))        base = Math.min(base + 0.15, 1.0);
-        else if ("medium".equals(criticality)) base = Math.min(base + 0.05, 1.0);
+        if ("high".equals(criticality))        base = Math.min(base + 0.10, 1.0);
+        else if ("medium".equals(criticality)) base = Math.min(base + 0.04, 1.0);
 
         return base;
     }
 
     private double sfByAge(LocalDate installationDate) {
-        if (installationDate == null) return 0.3;
+        if (installationDate == null) return 0.25;
         long months = ChronoUnit.MONTHS.between(installationDate, LocalDate.now());
-        if (months < 6)    return 0.05;
-        if (months < 12)   return 0.15;
-        if (months < 24)   return 0.30;
-        if (months < 48)   return 0.50;
-        if (months < 84)   return 0.72;
-        return                     0.90;
+        if (months < 6)    return 0.0;   // جديدة → LOW
+        if (months < 12)   return 0.15;  // أقل من سنة → LOW/border
+        if (months < 24)   return 0.28;  // سنة لسنتين → MEDIUM
+        if (months < 48)   return 0.50;  // 2-4 سنين → MEDIUM/HIGH
+        if (months < 84)   return 0.72;  // 4-7 سنين → HIGH
+        return                     0.90;  // 7+ سنين → HIGH
     }
 
     private double sfByHours(Machine machine) {
@@ -124,37 +107,46 @@ public class SensorGeneratorService {
             hours = machine.getOperatingHours().doubleValue();
         else if (machine.getOperatingCycles() != null)
             hours = machine.getOperatingCycles().doubleValue() * 0.5;
-        else return 0.3;
+        else return 0.25;
 
-        if (hours < 500)     return 0.05;
+        if (hours < 500)     return 0.0;
         if (hours < 2000)    return 0.15;
-        if (hours < 5000)    return 0.30;
-        if (hours < 10000)   return 0.55;
-        if (hours < 20000)   return 0.75;
-        return                       0.92;
+        if (hours < 5000)    return 0.28;
+        if (hours < 10000)   return 0.52;
+        if (hours < 20000)   return 0.74;
+        return                       0.90;
     }
 
-    private List<Double> generate21(String type, double sf, Random r) {
-        double[] base, delta;
-
-        // كل الـ types بتاخد نفس الـ CNC baseline لأن الـ model اتدرب عليه
-        // الاختلاف بس في شوية random noise عشان يبان فيه تنوع
-        base  = CNC_BASE;
-        delta = CNC_DELTA;
-
+    private List<Double> generate21(double sf, Random r) {
         double[] out = new double[21];
+
         for (int i = 0; i < 21; i++) {
-            // noise صغير جداً حتى لو sf = 0 (عشان مش تبقى أرقام ثابتة تماماً)
-            double noise = (r.nextDouble() - 0.5) * delta[i] * 0.1;
-            // الزيادة الرئيسية بناءً على sf
-            double stress = r.nextDouble() * delta[i] * sf;
-            out[i] = round(base[i] + noise + stress);
+            double min   = NORMAL_MIN[i];
+            double max   = NORMAL_MAX[i];
+            double range = max - min;
+
+            if (range < 0.001) {
+                // Fixed sensor (min == max) — لا noise ولا stress
+                out[i] = round(min);
+                continue;
+            }
+
+            // داخل الـ normal range: قيمة random بين min و max
+            double baseValue = min + r.nextDouble() * range;
+
+            // stress: نسبة من الـ normal range تتضاف فوق الـ max
+            // sf=0.0 → 0% زيادة (LOW)
+            // sf=0.3 → ~30% من الـ range فوق الـ max (≈1% من القيمة → MEDIUM)
+            // sf=0.6 → ~60% من الـ range فوق الـ max (≈2% من القيمة → HIGH)
+            double stress = sf * range * 0.3 * (0.8 + r.nextDouble() * 0.4);
+
+            out[i] = round(baseValue + stress);
         }
 
         return List.of(
-                out[0],out[1],out[2],out[3],out[4],out[5],out[6],
-                out[7],out[8],out[9],out[10],out[11],out[12],out[13],
-                out[14],out[15],out[16],out[17],out[18],out[19],out[20]
+                out[0], out[1], out[2], out[3], out[4], out[5], out[6],
+                out[7], out[8], out[9], out[10], out[11], out[12], out[13],
+                out[14], out[15], out[16], out[17], out[18], out[19], out[20]
         );
     }
 
