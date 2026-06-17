@@ -188,6 +188,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                         "Technician started work on: " + workOrder.getTitle()
                 );
             }
+            if (request.getEstimatedHours() != null) workOrder.setEstimatedHours(request.getEstimatedHours());
         }
 
         if (request.getAssignedToUserId() != null) {

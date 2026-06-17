@@ -7,7 +7,9 @@ public class UpdateWorkOrderRequest {
     private String status;
     private Long assignedToUserId;
     private String dueDate;
-
+    private Integer estimatedHours;
+    public Integer getEstimatedHours() { return estimatedHours; }
+    public void setEstimatedHours(Integer estimatedHours) { this.estimatedHours = estimatedHours; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
