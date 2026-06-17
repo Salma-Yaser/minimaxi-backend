@@ -71,6 +71,9 @@ public class WorkOrder {
     @Column(name = "closed_at")
     private Instant closedAt;
 
+    @Column(name = "estimated_hours")
+    private Integer estimatedHours;
+
     @Enumerated(EnumType.STRING)
     @ColumnDefault("'MEDIUM'")
     @Column(name = "priority", nullable = false)
@@ -83,4 +86,6 @@ public class WorkOrder {
 
     @OneToOne(mappedBy = "workOrder", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private WorkOrderCompletion completion;
+
+
 }

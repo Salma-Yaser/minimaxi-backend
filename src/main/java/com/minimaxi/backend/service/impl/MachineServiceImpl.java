@@ -236,10 +236,10 @@ public class MachineServiceImpl implements MachineService {
             // 4. issues (المرتبطة مباشرة بالماكينة عبر machine_id)
             issueRepository.deleteAll(issues);
 
-// 4.5 issues المرتبطة بـ predictions هذه الماكينة (عبر issue.prediction_id)
+            // 4.5 issues المرتبطة بـ predictions هذه الماكينة (عبر issue.prediction_id)
             issueRepository.deleteByPredictionMachineId(id);
 
-// 5. notifications المرتبطة بالـ predictions، ثم الـ predictions نفسها
+            // 5. notifications المرتبطة بالـ predictions، ثم الـ predictions نفسها
             notificationRepository.deleteByPredictionMachineId(id);
             predictionRepository.deleteByMachineIdDirect(id);
 
@@ -391,9 +391,11 @@ public class MachineServiceImpl implements MachineService {
                     map.put("id", woc.getId());
                     map.put("work_order_id", woc.getWorkOrder() != null ? woc.getWorkOrder().getId() : null);
                     map.put("work_order_title", woc.getWorkOrder() != null ? woc.getWorkOrder().getTitle() : null);
+                    map.put("work_order_description", woc.getWorkOrder() != null ? woc.getWorkOrder().getDescription() : null); // ✅ جديد
                     map.put("action_taken", woc.getActionTaken());
                     map.put("root_cause", woc.getRootCause());
                     map.put("additional_notes", woc.getAdditionalNotes());
+                    map.put("spare_parts", woc.getSpareParts()); // ✅ جديد
                     map.put("time_spent_minutes", woc.getTimeSpentMinutes());
                     map.put("completed_at", woc.getCompletedAt() != null ? woc.getCompletedAt().toString() : null);
                     return map;

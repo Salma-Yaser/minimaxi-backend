@@ -130,6 +130,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                         : WorkOrderStatus.OPEN
         );
 
+        workOrder.setEstimatedHours(request.getEstimatedHours());
         WorkOrder saved = workOrderRepository.save(workOrder);
 
         if (saved.getAssignedToUser() != null) {
@@ -196,8 +197,19 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
             workOrder.setAssignedToUser(newAssignee);
 
-            boolean isReassignment = oldAssignee == null || !oldAssignee.getId().equals(newAssignee.getId());
+            boolean isReassignment = oldAssignee != null && !oldAssignee.getId().equals(newAssignee.getId());
+
             if (isReassignment) {
+                notificationService.notifyWorkOrderEvent(
+                        workOrder,
+                        oldAssignee,
+                        NotificationType.WO_STATUS_CHANGED,
+                        "Work Order Reassigned",
+                        "Work order \"" + workOrder.getTitle() + "\" has been reassigned to another technician."
+                );
+            }
+
+            if (oldAssignee == null || isReassignment) {
                 notificationService.notifyWorkOrderEvent(
                         workOrder,
                         newAssignee,
@@ -207,7 +219,6 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                 );
             }
         }
-
         return WorkOrderMapper.toResponse(workOrderRepository.save(workOrder));
     }
     @Override
@@ -238,7 +249,6 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         if (!workOrderRepository.existsById(id)) {
             throw new RuntimeException("Work order not found with id: " + id);
         }
-
         return new WorkOrderNoteResponse(
                 UUID.randomUUID().toString(),
                 request.getContent(),

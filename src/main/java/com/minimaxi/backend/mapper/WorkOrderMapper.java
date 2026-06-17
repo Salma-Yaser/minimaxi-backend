@@ -43,7 +43,7 @@ public class WorkOrderMapper {
                 .createdAt(workOrder.getCreatedAt() != null ? workOrder.getCreatedAt().toString() : null)
                 .dueDate(workOrder.getDueDate() != null ? workOrder.getDueDate().toString() : null)
                 .completedAt(workOrder.getClosedAt() != null ? workOrder.getClosedAt().toString() : null)
-                .estimatedHours(null)
+                .estimatedHours(workOrder.getEstimatedHours())
                 .actualHours(null)
                 .build();
     }

@@ -1,5 +1,6 @@
 package com.minimaxi.backend.service.impl;
 
+import com.minimaxi.backend.config.NotificationWebSocketHandler;
 import com.minimaxi.backend.dto.response.NotificationResponse;
 import com.minimaxi.backend.entity.*;
 import com.minimaxi.backend.enums.NotificationType;
@@ -22,12 +23,19 @@ public class NotificationServiceImpl implements NotificationService {
     private final AppUserRepository appUserRepository;
     private final UserAssetAssignmentRepository userAssetAssignmentRepository;
 
+    private final NotificationWebSocketHandler webSocketHandler;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     public NotificationServiceImpl(NotificationRepository notificationRepository,
                                    AppUserRepository appUserRepository,
-                                   UserAssetAssignmentRepository userAssetAssignmentRepository) {
+                                   UserAssetAssignmentRepository userAssetAssignmentRepository,
+                                   NotificationWebSocketHandler webSocketHandler) {
         this.notificationRepository = notificationRepository;
         this.appUserRepository = appUserRepository;
         this.userAssetAssignmentRepository = userAssetAssignmentRepository;
+        this.webSocketHandler = webSocketHandler;
+        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
     }
 
     @Override
@@ -62,7 +70,8 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    public void notifyWorkOrderEvent(WorkOrder workOrder, AppUser recipient, NotificationType type, String title, String message) {
+    public void notifyWorkOrderEvent(WorkOrder workOrder, AppUser recipient,
+                                     NotificationType type, String title, String message) {
         if (recipient == null) return;
 
         Notification notification = new Notification();
@@ -75,9 +84,17 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setIsRead(false);
         notification.setCreatedAt(Instant.now());
 
-        notificationRepository.save(notification);
-    }
+        Notification saved = notificationRepository.save(notification);
 
+        // بعت real-time لو الـ user متصل
+        try {
+            NotificationResponse response = NotificationMapper.toResponse(saved);
+            String json = objectMapper.writeValueAsString(response);
+            webSocketHandler.sendToUser(recipient.getId(), json);
+        } catch (Exception e) {
+            // لو فشل الـ WebSocket مش مشكلة، الـ notification اتحفظت في الـ DB
+        }
+    }
     @Override
     @Transactional
     public void notifyCriticalPrediction(Prediction prediction) {

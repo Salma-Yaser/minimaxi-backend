@@ -34,4 +34,7 @@ public class CreateWorkOrderRequest {
 
     @JsonProperty("ai_suggested")
     private Boolean aiSuggested;
+    private Integer estimatedHours;
+    public Integer getEstimatedHours() { return estimatedHours; }
+    public void setEstimatedHours(Integer estimatedHours) { this.estimatedHours = estimatedHours; }
 }
