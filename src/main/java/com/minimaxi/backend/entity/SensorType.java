@@ -16,7 +16,8 @@ import java.time.Instant;
 @Table(name = "sensor_type")
 public class SensorType {
     @Id
-    @ColumnDefault("nextval('sensor_type_id_seq')")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sensor_type_seq")
+    @SequenceGenerator(name = "sensor_type_seq", sequenceName = "sensor_type_id_seq", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Long id;
 
