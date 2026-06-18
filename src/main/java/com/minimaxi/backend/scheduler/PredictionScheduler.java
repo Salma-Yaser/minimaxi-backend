@@ -110,7 +110,8 @@ public class PredictionScheduler {
         predictionRepository.save(prediction);
         updateMachineStatus(machine, riskLevel);
 
-        if (prediction.getSeverity() == PredictionSeverity.CRITICAL) {
+        if (prediction.getSeverity() == PredictionSeverity.HIGH ||
+                prediction.getSeverity() == PredictionSeverity.CRITICAL) {
             notificationService.notifyCriticalPrediction(prediction);
         }
     }
