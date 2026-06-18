@@ -2,8 +2,13 @@ package com.minimaxi.backend.controller;
 
 import com.minimaxi.backend.dto.request.*;
 import com.minimaxi.backend.dto.response.*;
+import com.minimaxi.backend.entity.AppUser;
+import com.minimaxi.backend.repository.AppUserRepository;
 import com.minimaxi.backend.service.SettingsService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
 
 import java.util.List;
 import java.util.Map;
@@ -14,11 +19,13 @@ import java.util.Map;
 public class SettingsController {
 
     private final SettingsService settingsService;
+    private final AppUserRepository appUserRepository;
 
-    public SettingsController(SettingsService settingsService) {
+    public SettingsController(SettingsService settingsService,
+                              AppUserRepository appUserRepository) {
         this.settingsService = settingsService;
+        this.appUserRepository = appUserRepository;
     }
-
     // ─── Asset Types ─────────────────────────────────────────────────────────
 
     // Frontend calls: GET /api/settings/asset-types  ✅
@@ -27,11 +34,19 @@ public class SettingsController {
         return settingsService.getAssetTypes();
     }
 
+    private AppUser getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        return appUserRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found: " + email));
+    }
     // Frontend calls: POST /api/settings/asset-types  ✅
     @PostMapping("/asset-types")
     public AssetTypeResponse createAssetType(@RequestBody CreateAssetTypeRequest request) {
-        return settingsService.createAssetType(request);
+        Long organizationId = getCurrentUser().getOrganization().getId();
+        return settingsService.createAssetType(request, organizationId);
     }
+
 
     // Frontend calls: PUT /api/settings/asset-types/{id}  ✅
     @PutMapping("/asset-types/{id}")

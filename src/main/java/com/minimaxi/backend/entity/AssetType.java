@@ -38,6 +38,16 @@ public class AssetType {
     private String industry;
 
     @NotNull
+    @ColumnDefault("true")
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
+
+    @NotNull
+    @ColumnDefault("90")
+    @Column(name = "maintenance_interval", nullable = false)
+    private Integer maintenanceInterval = 90;
+
+    @NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

@@ -10,8 +10,7 @@ public interface SettingsService {
 
     // ─── Asset Types ─────────────────────────────────────────────────────────
     List<AssetTypeResponse> getAssetTypes();
-    AssetTypeResponse createAssetType(CreateAssetTypeRequest request);
-    AssetTypeResponse updateAssetType(Long id, UpdateAssetTypeRequest request);
+    AssetTypeResponse createAssetType(CreateAssetTypeRequest request, Long organizationId);    AssetTypeResponse updateAssetType(Long id, UpdateAssetTypeRequest request);
     Map<String, Object> deleteAssetType(Long id);
 
     // ─── Sensor Thresholds ───────────────────────────────────────────────────

@@ -53,30 +53,34 @@ public class SettingsServiceImpl implements SettingsService {
 
     @Override
     @Transactional
-    public AssetTypeResponse createAssetType(CreateAssetTypeRequest request) {
+    public AssetTypeResponse createAssetType(CreateAssetTypeRequest request, Long organizationId) {
         AssetType assetType = new AssetType();
         assetType.setName(request.getName());
         assetType.setDescription(request.getDescription());
         assetType.setIndustry(request.getIndustry());
+        assetType.setActive(request.getActive() != null ? request.getActive() : true);
+        assetType.setMaintenanceInterval(
+                request.getMaintenanceInterval() != null ? request.getMaintenanceInterval() : 90
+        );
         assetType.setCreatedAt(Instant.now());
         assetType.setOrganization(
-                organizationRepository.findById(request.getOrganizationId())
+                organizationRepository.findById(organizationId)
                         .orElseThrow(() -> new RuntimeException("Organization not found"))
         );
         return toAssetTypeResponse(assetTypeRepository.save(assetType));
     }
-
     @Override
     @Transactional
     public AssetTypeResponse updateAssetType(Long id, UpdateAssetTypeRequest request) {
         AssetType assetType = assetTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Asset type not found"));
-        if (request.getName() != null)        assetType.setName(request.getName());
-        if (request.getDescription() != null) assetType.setDescription(request.getDescription());
-        if (request.getIndustry() != null)    assetType.setIndustry(request.getIndustry());
+        if (request.getName() != null)                 assetType.setName(request.getName());
+        if (request.getDescription() != null)          assetType.setDescription(request.getDescription());
+        if (request.getIndustry() != null)              assetType.setIndustry(request.getIndustry());
+        if (request.getActive() != null)                assetType.setActive(request.getActive());
+        if (request.getMaintenanceInterval() != null)   assetType.setMaintenanceInterval(request.getMaintenanceInterval());
         return toAssetTypeResponse(assetTypeRepository.save(assetType));
     }
-
     @Override
     @Transactional
     public Map<String, Object> deleteAssetType(Long id) {
@@ -93,6 +97,8 @@ public class SettingsServiceImpl implements SettingsService {
                 a.getName(),
                 a.getDescription(),
                 a.getIndustry(),
+                a.getActive(),
+                a.getMaintenanceInterval(),
                 a.getCreatedAt() != null ? a.getCreatedAt().toString() : null
         );
     }
