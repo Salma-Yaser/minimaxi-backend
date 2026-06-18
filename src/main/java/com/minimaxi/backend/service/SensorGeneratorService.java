@@ -21,23 +21,22 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    private static final double[] IMPORTANCE = {
-            0.01, 0.01, 0.02, 0.14, 0.01, 0.02, 0.12,
-            0.02, 0.06, 0.01, 0.16, 0.09, 0.02, 0.02,
-            0.08, 0.01, 0.02, 0.01, 0.01, 0.06, 0.06
+    // sf zones:
+    // 0.00 - 0.29 → LOW    (داخل normal range)
+    // 0.30 - 0.59 → MEDIUM (~1% فوق normal max)
+    // 0.60 - 1.00 → HIGH   (~2%+ فوق normal max)
+    private static final double[] SF_STRESS_PERCENT = {
+            0.0,   // sf < 0.30 → 0% stress → LOW
+            0.012, // sf 0.30-0.59 → 1.2% stress → MEDIUM
+            0.025  // sf >= 0.60 → 2.5% stress → HIGH
     };
-
-    private static final double MAX_STRESS_PERCENT = 0.03;
 
     public List<Double> generate(Machine machine) {
         String assetId = machine.getAssetId() != null
                 ? machine.getAssetId() : "MCH-" + machine.getId();
 
-        // sf ثابت لكل ماكينة مبني على الـ assetId hash
-        // بيضمن إن كل ماكينة ليها sf مختلف وثابت
         double sf = computeStressFromAssetId(assetId, machine);
 
-        // seed بيتغير كل 10 دقايق عشان القراءات مش ثابتة
         long timeSlot = System.currentTimeMillis() / 600000;
         Random r = new Random(assetId.hashCode() + timeSlot);
 
@@ -45,16 +44,14 @@ public class SensorGeneratorService {
     }
 
     private double computeStressFromAssetId(String assetId, Machine machine) {
-        // بناخد الـ hash بالقيمة المطلقة ونحوله لـ sf بين 0.0 و 1.0
         int hash = Math.abs(assetId.hashCode());
-        double baseSf = (hash % 100) / 100.0; // 0.00 → 0.99
+        double baseSf = (hash % 100) / 100.0;
 
-        // criticality بتعدل بسيط فوق الـ hash
         String criticality = machine.getCriticality() != null
                 ? machine.getCriticality().name().toLowerCase() : "medium";
 
-        if ("high".equals(criticality))        baseSf = Math.min(baseSf + 0.10, 1.0);
-        else if ("low".equals(criticality))    baseSf = Math.max(baseSf - 0.10, 0.0);
+        if ("high".equals(criticality))     baseSf = Math.min(baseSf + 0.10, 1.0);
+        else if ("low".equals(criticality)) baseSf = Math.max(baseSf - 0.10, 0.0);
 
         return baseSf;
     }
@@ -62,16 +59,23 @@ public class SensorGeneratorService {
     private List<Double> generate21(double sf, Random r) {
         double[] out = new double[21];
 
+        // نحدد الـ stress percent بناءً على الـ sf zone
+        double stressPct;
+        if (sf < 0.30)      stressPct = SF_STRESS_PERCENT[0];
+        else if (sf < 0.60) stressPct = SF_STRESS_PERCENT[1];
+        else                stressPct = SF_STRESS_PERCENT[2];
+
         for (int i = 0; i < 21; i++) {
             double min = NORMAL_MIN[i];
             double max = NORMAL_MAX[i];
 
+            // base داخل الـ normal range
             double baseValue = (max - min < 0.001)
                     ? min
                     : min + r.nextDouble() * (max - min);
 
-            double stress = IMPORTANCE[i] * sf * MAX_STRESS_PERCENT * max
-                    * (0.8 + r.nextDouble() * 0.4);
+            // stress = نسبة ثابتة من الـ max + شوية random
+            double stress = stressPct * max * (0.8 + r.nextDouble() * 0.4);
 
             out[i] = round(baseValue + stress);
         }
