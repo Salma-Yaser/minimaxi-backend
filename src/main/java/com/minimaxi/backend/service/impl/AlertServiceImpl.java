@@ -22,20 +22,33 @@ public class AlertServiceImpl implements AlertService {
 
     // ─── helper: entity → AlertResponse ─────────────────────────────────────
     private AlertResponse toResponse(Notification n) {
-        // نحدد الـ type من الـ notification type
         String type = switch (n.getType().name()) {
             case "PREDICTED_FAILURE" -> "prediction";
             case "SENSOR_ALERT"      -> "threshold";
             default                  -> "info";
         };
 
+        Long machineId = null;
+        String machineName = null;
+        String assetId = null;
+
+        try {
+            if (n.getMachine() != null) {
+                machineId = n.getMachine().getId();
+                machineName = n.getMachine().getName();
+                assetId = n.getMachine().getAssetId();
+            }
+        } catch (Exception e) {
+            // lazy load فشل
+        }
+
         return new AlertResponse(
                 n.getId(),
                 type,
                 n.getSeverity() != null ? n.getSeverity().name().toLowerCase() : "info",
-                n.getMachine() != null ? n.getMachine().getId() : null,
-                n.getMachine() != null ? n.getMachine().getName() : null,
-                n.getMachine() != null ? n.getMachine().getAssetId() : null,
+                machineId,
+                machineName,
+                assetId,
                 n.getTitle(),
                 n.getMessage(),
                 n.getCreatedAt() != null ? n.getCreatedAt().toString() : null,
@@ -61,6 +74,10 @@ public class AlertServiceImpl implements AlertService {
 
         return toResponse(notificationRepository.save(notification));
     }
+
+
+    @Override
+    @Transactional
     public List<AlertResponse> getAlerts(String severity, Boolean acknowledged, Long organizationId) {
         return notificationRepository
                 .findByOrganizationIdAndTypeIn(
