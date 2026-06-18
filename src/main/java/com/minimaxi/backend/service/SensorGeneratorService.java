@@ -3,8 +3,6 @@ package com.minimaxi.backend.service;
 import com.minimaxi.backend.entity.Machine;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Random;
 
@@ -23,62 +21,42 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    // نسبة الزيادة المطلوبة فوق NORMAL_MAX عشان الموديل يحس بيها
-    // sf=0.0 → 0%    → LOW
-    // sf=0.5 → 0.75% → MEDIUM  (sensor_9: +68 فوق 9087 = 9155)
-    // sf=1.0 → 2.5%  → HIGH    (sensor_9: +227 فوق 9087 = 9314)
-    private static final double MAX_STRESS_PERCENT = 0.025;
+    private static final double[] IMPORTANCE = {
+            0.01, 0.01, 0.02, 0.14, 0.01, 0.02, 0.12,
+            0.02, 0.06, 0.01, 0.16, 0.09, 0.02, 0.02,
+            0.08, 0.01, 0.02, 0.01, 0.01, 0.06, 0.06
+    };
+
+    private static final double MAX_STRESS_PERCENT = 0.03;
 
     public List<Double> generate(Machine machine) {
         String assetId = machine.getAssetId() != null
                 ? machine.getAssetId() : "MCH-" + machine.getId();
-        String criticality = machine.getCriticality() != null
-                ? machine.getCriticality().name().toLowerCase() : "medium";
 
-        double sf = computeStressFactor(machine, criticality);
+        // sf ثابت لكل ماكينة مبني على الـ assetId hash
+        // بيضمن إن كل ماكينة ليها sf مختلف وثابت
+        double sf = computeStressFromAssetId(assetId, machine);
 
+        // seed بيتغير كل 10 دقايق عشان القراءات مش ثابتة
         long timeSlot = System.currentTimeMillis() / 600000;
         Random r = new Random(assetId.hashCode() + timeSlot);
 
         return generate21(sf, r);
     }
 
-    private double computeStressFactor(Machine machine, String criticality) {
-        double sfAge   = sfByAge(machine.getInstallationDate());
-        double sfHours = sfByHours(machine);
-        double base    = Math.max(sfAge, sfHours);
+    private double computeStressFromAssetId(String assetId, Machine machine) {
+        // بناخد الـ hash بالقيمة المطلقة ونحوله لـ sf بين 0.0 و 1.0
+        int hash = Math.abs(assetId.hashCode());
+        double baseSf = (hash % 100) / 100.0; // 0.00 → 0.99
 
-        if ("high".equals(criticality))        base = Math.min(base + 0.10, 1.0);
-        else if ("medium".equals(criticality)) base = Math.min(base + 0.04, 1.0);
+        // criticality بتعدل بسيط فوق الـ hash
+        String criticality = machine.getCriticality() != null
+                ? machine.getCriticality().name().toLowerCase() : "medium";
 
-        return base;
-    }
+        if ("high".equals(criticality))        baseSf = Math.min(baseSf + 0.10, 1.0);
+        else if ("low".equals(criticality))    baseSf = Math.max(baseSf - 0.10, 0.0);
 
-    private double sfByAge(LocalDate installationDate) {
-        if (installationDate == null) return 0.3;
-        long months = ChronoUnit.MONTHS.between(installationDate, LocalDate.now());
-        if (months < 6)    return 0.0;
-        if (months < 12)   return 0.18;
-        if (months < 24)   return 0.35;
-        if (months < 48)   return 0.55;
-        if (months < 84)   return 0.75;
-        return                     0.92;
-    }
-
-    private double sfByHours(Machine machine) {
-        double hours = 0;
-        if (machine.getOperatingHours() != null)
-            hours = machine.getOperatingHours().doubleValue();
-        else if (machine.getOperatingCycles() != null)
-            hours = machine.getOperatingCycles().doubleValue() * 0.5;
-        else return 0.3;
-
-        if (hours < 500)     return 0.0;
-        if (hours < 2000)    return 0.18;
-        if (hours < 5000)    return 0.35;
-        if (hours < 10000)   return 0.55;
-        if (hours < 20000)   return 0.75;
-        return                       0.92;
+        return baseSf;
     }
 
     private List<Double> generate21(double sf, Random r) {
@@ -88,19 +66,12 @@ public class SensorGeneratorService {
             double min = NORMAL_MIN[i];
             double max = NORMAL_MAX[i];
 
-            if (max - min < 0.001) {
-                // Fixed sensor — نضيف stress كنسبة من القيمة نفسها
-                double stress = min * MAX_STRESS_PERCENT * sf * (0.8 + r.nextDouble() * 0.4);
-                out[i] = round(min + stress);
-                continue;
-            }
+            double baseValue = (max - min < 0.001)
+                    ? min
+                    : min + r.nextDouble() * (max - min);
 
-            // Base: random داخل الـ normal range
-            double baseValue = min + r.nextDouble() * (max - min);
-
-            // Stress: نسبة من NORMAL_MAX نفسه (مش من الـ range)
-            // عشان يكون كافي يعدي الـ threshold بتاع الموديل
-            double stress = max * MAX_STRESS_PERCENT * sf * (0.8 + r.nextDouble() * 0.4);
+            double stress = IMPORTANCE[i] * sf * MAX_STRESS_PERCENT * max
+                    * (0.8 + r.nextDouble() * 0.4);
 
             out[i] = round(baseValue + stress);
         }
