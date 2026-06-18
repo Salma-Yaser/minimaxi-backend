@@ -137,6 +137,14 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setIsRead(false);
         notification.setCreatedAt(Instant.now());
 
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+
+        try {
+            NotificationResponse response = NotificationMapper.toResponse(saved);
+            String json = objectMapper.writeValueAsString(response);
+            webSocketHandler.sendToUser(recipient.getId(), json);
+        } catch (Exception e) {
+            // لو الـ WebSocket فشل مش مشكلة، الـ DB اتحفظت
+        }
     }
 }

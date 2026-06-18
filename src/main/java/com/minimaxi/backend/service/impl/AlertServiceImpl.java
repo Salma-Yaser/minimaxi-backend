@@ -2,6 +2,7 @@ package com.minimaxi.backend.service.impl;
 
 import com.minimaxi.backend.dto.response.AlertResponse;
 import com.minimaxi.backend.entity.Notification;
+import com.minimaxi.backend.enums.NotificationType;
 import com.minimaxi.backend.repository.NotificationRepository;
 import com.minimaxi.backend.service.AlertService;
 import org.springframework.stereotype.Service;
@@ -44,25 +45,7 @@ public class AlertServiceImpl implements AlertService {
         );
     }
 
-    // ─── GET ALL ─────────────────────────────────────────────────────────────
 
-    @Override
-    @Transactional
-    public List<AlertResponse> getAlerts(String severity, Boolean acknowledged, Long organizationId) {
-        return notificationRepository.findAll()
-                .stream()
-                .filter(n -> organizationId == null ||
-                        (n.getOrganization() != null &&
-                                n.getOrganization().getId().equals(organizationId)))
-                .filter(n -> n.getType().name().equals("PREDICTED_FAILURE")
-                        || n.getType().name().equals("SENSOR_ALERT"))
-                .filter(n -> severity == null || severity.isBlank() ||
-                        (n.getSeverity() != null && n.getSeverity().name().equalsIgnoreCase(severity)))
-                .filter(n -> acknowledged == null ||
-                        Boolean.TRUE.equals(n.getAcknowledged()) == acknowledged)
-                .map(this::toResponse)
-                .toList();
-    }
 
     // ─── ACKNOWLEDGE ─────────────────────────────────────────────────────────
 
@@ -77,5 +60,19 @@ public class AlertServiceImpl implements AlertService {
         notification.setAcknowledgedAt(Instant.now());
 
         return toResponse(notificationRepository.save(notification));
+    }
+    public List<AlertResponse> getAlerts(String severity, Boolean acknowledged, Long organizationId) {
+        return notificationRepository
+                .findByOrganizationIdAndTypeIn(
+                        organizationId,
+                        List.of(NotificationType.SENSOR_ALERT, NotificationType.PREDICTED_FAILURE)
+                )
+                .stream()
+                .filter(n -> severity == null || severity.isBlank() ||
+                        (n.getSeverity() != null && n.getSeverity().name().equalsIgnoreCase(severity)))
+                .filter(n -> acknowledged == null ||
+                        Boolean.TRUE.equals(n.getAcknowledged()) == acknowledged)
+                .map(this::toResponse)
+                .toList();
     }
 }

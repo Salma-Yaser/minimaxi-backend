@@ -26,4 +26,5 @@ public class NotificationResponse {
 
     @JsonProperty("work_order_id")
     private Long workOrderId;
+    private Boolean acknowledged;
 }
