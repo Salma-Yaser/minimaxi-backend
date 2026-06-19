@@ -21,11 +21,11 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    // Stronger stress levels
+    // Conservative stress levels
     private static final double[] SF_STRESS_PERCENT = {
-            0.0,   // LOW
-            0.03,  // MEDIUM
-            0.08   // HIGH
+            0.0,    // LOW
+            0.008,  // MEDIUM
+            0.015   // HIGH
     };
 
     public List<Double> generate(Machine machine) {
@@ -38,7 +38,6 @@ public class SensorGeneratorService {
 
         Random r = new Random(assetId.hashCode() + timeSlot);
 
-        // FIX #1
         double sf = computeStressFromAssetId(assetId, machine);
 
         System.out.println(
@@ -54,20 +53,24 @@ public class SensorGeneratorService {
 
         int hash = Math.abs(assetId.hashCode());
 
-        double baseSf = (hash % 100) / 100.0;
-
         String criticality = machine.getCriticality() != null
                 ? machine.getCriticality().name().toLowerCase()
                 : "medium";
 
-        if ("high".equals(criticality)) {
-            baseSf = Math.min(baseSf + 0.20, 1.0);
-        }
-        else if ("low".equals(criticality)) {
-            baseSf = Math.max(baseSf - 0.20, 0.0);
+        if ("low".equals(criticality)) {
+
+            // Mostly healthy
+            return 0.05 + ((hash % 20) / 100.0);
+
+        } else if ("high".equals(criticality)) {
+
+            // Risky/Critical candidates
+            return 0.45 + ((hash % 30) / 100.0);
+
         }
 
-        return baseSf;
+        // Medium machines
+        return 0.20 + ((hash % 30) / 100.0);
     }
 
     private List<Double> generate21(double sf, Random r) {
@@ -97,10 +100,7 @@ public class SensorGeneratorService {
 
             double stress;
 
-            // Important sensors according to AI feature importance:
-            // sensor_4, sensor_7, sensor_9, sensor_11,
-            // sensor_12, sensor_15, sensor_20, sensor_21
-
+            // Important sensors according to AI feature importance
             switch (i) {
 
                 case 3:   // sensor_4
@@ -109,8 +109,6 @@ public class SensorGeneratorService {
                 case 10:  // sensor_11
                 case 11:  // sensor_12
                 case 14:  // sensor_15
-                case 19:  // sensor_20
-                case 20:  // sensor_21
 
                     stress = stressPct * max *
                             (0.8 + r.nextDouble() * 0.4);
@@ -118,17 +116,12 @@ public class SensorGeneratorService {
 
                 default:
 
-                    stress = stressPct * max * 0.2 *
+                    stress = stressPct * max * 0.15 *
                             (0.8 + r.nextDouble() * 0.4);
             }
 
             out[i] = round(baseValue + stress);
         }
-
-        System.out.println(
-                "Generated Sensors => " +
-                        java.util.Arrays.toString(out)
-        );
 
         return List.of(
                 out[0], out[1], out[2], out[3], out[4], out[5], out[6],
