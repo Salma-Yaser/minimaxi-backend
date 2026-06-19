@@ -1,6 +1,7 @@
 package com.minimaxi.backend.service.impl;
 
 import com.minimaxi.backend.dto.response.ReportsResponse;
+import com.minimaxi.backend.entity.WorkOrder;
 import com.minimaxi.backend.enums.PredictionSeverity;
 import com.minimaxi.backend.enums.WorkOrderStatus;
 import com.minimaxi.backend.repository.PredictionRepository;
@@ -9,6 +10,7 @@ import com.minimaxi.backend.service.ReportsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -25,6 +27,11 @@ public class ReportsServiceImpl implements ReportsService {
             "Jan","Feb","Mar","Apr","May","Jun",
             "Jul","Aug","Sep","Oct","Nov","Dec"
     );
+
+    // before_hours مفيش لها بيانات تاريخية حقيقية محفوظة، فبنحطها كنسبة
+    // تقديرية من الـ after_hours الفعلي (متفق عليها كـ placeholder مؤقت
+    // لحد ما يبقى عندنا داتا تاريخية حقيقية قبل تركيب النظام).
+    private static final double BEFORE_HOURS_FACTOR = 1.8;
 
     public ReportsServiceImpl(WorkOrderRepository workOrderRepository,
                               PredictionRepository predictionRepository) {
@@ -64,23 +71,27 @@ public class ReportsServiceImpl implements ReportsService {
         preventiveVsReactive.put("preventive", preventivePct);
         preventiveVsReactive.put("reactive",   100 - preventivePct);
 
-        // ── Monthly Downtime — من الـ predictions (HIGH كل شهر) ──────────────
-        // نجمع عدد الـ HIGH predictions لكل شهر كمؤشر على الـ downtime
-        Map<String, Long> highPerMonth = allPredictions.stream()
-                .filter(p -> p.getSeverity() == PredictionSeverity.HIGH)
+        // ── Monthly Downtime — من الـ Work Orders الفعلية المقفولة ──────────
+        // after_hours لكل شهر = مجموع (closedAt - createdAt) بالساعات لكل
+        // work order اتقفلت في الشهر ده (مبني على closedAt، مش createdAt،
+        // عشان نعرف فعلياً امتى الماكينة رجعت تشتغل).
+        // before_hours = تقديري (factor ثابت) لحد ما يبقى عندنا داتا تاريخية حقيقية.
+        Map<String, Double> afterHoursPerMonth = allWorkOrders.stream()
+                .filter(wo -> wo.getClosedAt() != null
+                        && wo.getCreatedAt() != null
+                        && (wo.getStatus() == WorkOrderStatus.COMPLETED
+                        || wo.getStatus() == WorkOrderStatus.CLOSED))
                 .collect(Collectors.groupingBy(
-                        p -> p.getPredictedAt()
-                                .atZone(ZoneOffset.UTC)
-                                .format(monthFmt),
-                        Collectors.counting()
+                        wo -> wo.getClosedAt().atZone(ZoneOffset.UTC).format(monthFmt),
+                        Collectors.summingDouble(wo ->
+                                Duration.between(wo.getCreatedAt(), wo.getClosedAt()).toMinutes() / 60.0)
                 ));
 
-        // before = عدد HIGH predictions * 0.5 hour، after = before * 0.65
         List<ReportsResponse.MonthlyDowntime> monthlyDowntime = MONTH_ORDER.stream()
-                .filter(highPerMonth::containsKey)
+                .filter(afterHoursPerMonth::containsKey)
                 .map(month -> {
-                    double before = highPerMonth.get(month) * 0.5;
-                    double after  = Math.round(before * 0.65 * 10.0) / 10.0;
+                    double after  = Math.round(afterHoursPerMonth.get(month) * 10.0) / 10.0;
+                    double before = Math.round(after * BEFORE_HOURS_FACTOR * 10.0) / 10.0;
                     return new ReportsResponse.MonthlyDowntime(month, before, after);
                 })
                 .collect(Collectors.toList());
@@ -168,7 +179,12 @@ public class ReportsServiceImpl implements ReportsService {
                             double totalHrs = mins.stream()
                                     .mapToLong(Long::longValue).sum() / 60.0;
                             return new ReportsResponse.TechnicianPerformance(
-                                    name, count, avgHours, 4.5, totalHrs, 94.0);
+                                    name,
+                                    count,
+                                    round2(avgHours),
+                                    4.5,
+                                    round2(totalHrs),
+                                    94.0);
                         })
                         .collect(Collectors.toList());
 
@@ -188,5 +204,9 @@ public class ReportsServiceImpl implements ReportsService {
                 accuracyTrend,
                 technicianPerformance
         );
+    }
+
+    private double round2(double v) {
+        return Math.round(v * 100.0) / 100.0;
     }
 }
