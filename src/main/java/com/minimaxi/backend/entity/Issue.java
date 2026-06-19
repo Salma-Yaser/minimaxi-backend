@@ -18,6 +18,7 @@ import java.time.Instant;
 @Table(name = "issue")
 public class Issue {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @ColumnDefault("nextval('issue_id_seq')")
     @Column(name = "id", nullable = false)
     private Long id;
