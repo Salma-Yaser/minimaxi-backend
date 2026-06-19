@@ -7,11 +7,16 @@ import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.NotificationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import java.time.LocalDate;
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(
+        name = "scheduler.due-date.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class DueDateReminderScheduler {
 
     private final WorkOrderRepository workOrderRepository;

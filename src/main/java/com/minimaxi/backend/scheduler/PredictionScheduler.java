@@ -16,12 +16,18 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import com.minimaxi.backend.service.NotificationService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 @Component
+@ConditionalOnProperty(
+        name = "scheduler.prediction.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class PredictionScheduler {
 
     private final MachineRepository machineRepository;

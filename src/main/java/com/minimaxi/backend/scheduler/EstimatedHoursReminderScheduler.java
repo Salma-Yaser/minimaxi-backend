@@ -6,12 +6,17 @@ import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.NotificationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(
+        name = "scheduler.estimated-hours.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class EstimatedHoursReminderScheduler {
 
     private final WorkOrderRepository workOrderRepository;
