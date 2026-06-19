@@ -35,10 +35,12 @@ public class SensorGeneratorService {
         String assetId = machine.getAssetId() != null
                 ? machine.getAssetId() : "MCH-" + machine.getId();
 
+        double sf = computeStressFromAssetId(assetId, machine);
+
         long timeSlot = System.currentTimeMillis() / 600000;
         Random r = new Random(assetId.hashCode() + timeSlot);
 
-        return generate21(0.10, r);  // دايماً healthy
+        return generate21(sf, r);
     }
 
     private double computeStressFromAssetId(String assetId, Machine machine) {
