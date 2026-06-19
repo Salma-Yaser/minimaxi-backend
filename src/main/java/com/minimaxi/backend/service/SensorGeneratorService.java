@@ -21,11 +21,11 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    // Conservative stress levels
+    // Softer stress levels
     private static final double[] SF_STRESS_PERCENT = {
-            0.0,    // LOW
-            0.008,  // MEDIUM
-            0.015   // HIGH
+            0.0,     // LOW
+            0.004,   // MEDIUM
+            0.008    // HIGH
     };
 
     public List<Double> generate(Machine machine) {
@@ -60,17 +60,17 @@ public class SensorGeneratorService {
         if ("low".equals(criticality)) {
 
             // Mostly healthy
-            return 0.05 + ((hash % 20) / 100.0);
+            return 0.02 + ((hash % 10) / 100.0);
 
         } else if ("high".equals(criticality)) {
 
-            // Risky/Critical candidates
-            return 0.45 + ((hash % 30) / 100.0);
+            // Small percentage become critical
+            return 0.35 + ((hash % 20) / 100.0);
 
         }
 
         // Medium machines
-        return 0.20 + ((hash % 30) / 100.0);
+        return 0.10 + ((hash % 20) / 100.0);
     }
 
     private List<Double> generate21(double sf, Random r) {
@@ -79,10 +79,10 @@ public class SensorGeneratorService {
 
         double stressPct;
 
-        if (sf < 0.30) {
+        if (sf < 0.20) {
             stressPct = SF_STRESS_PERCENT[0];
         }
-        else if (sf < 0.60) {
+        else if (sf < 0.45) {
             stressPct = SF_STRESS_PERCENT[1];
         }
         else {
@@ -98,9 +98,8 @@ public class SensorGeneratorService {
                     ? min
                     : min + r.nextDouble() * (max - min);
 
-            double stress;
+            double stress = 0;
 
-            // Important sensors according to AI feature importance
             switch (i) {
 
                 case 3:   // sensor_4
@@ -110,13 +109,18 @@ public class SensorGeneratorService {
                 case 11:  // sensor_12
                 case 14:  // sensor_15
 
-                    stress = stressPct * max *
-                            (0.8 + r.nextDouble() * 0.4);
+                    // Not every important sensor degrades
+                    if (r.nextDouble() < 0.40) {
+
+                        stress = stressPct * max *
+                                (0.8 + r.nextDouble() * 0.4);
+                    }
+
                     break;
 
                 default:
 
-                    stress = stressPct * max * 0.15 *
+                    stress = stressPct * max * 0.10 *
                             (0.8 + r.nextDouble() * 0.4);
             }
 
