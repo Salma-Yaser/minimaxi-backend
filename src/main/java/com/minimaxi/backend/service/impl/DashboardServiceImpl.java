@@ -1,7 +1,9 @@
 package com.minimaxi.backend.service.impl;
 
 import com.minimaxi.backend.dto.response.*;
+import com.minimaxi.backend.entity.Issue;
 import com.minimaxi.backend.entity.Prediction;
+import com.minimaxi.backend.enums.IssueSource;
 import com.minimaxi.backend.enums.MachineStatus;
 import com.minimaxi.backend.enums.PredictionSeverity;
 import com.minimaxi.backend.enums.WorkOrderStatus;
@@ -22,19 +24,22 @@ public class DashboardServiceImpl implements DashboardService {
     private final PredictionRepository predictionRepository;
     private final SensorReadingRepository sensorReadingRepository;
     private final SensorRepository sensorRepository;
+    private final IssueRepository issueRepository;
 
     public DashboardServiceImpl(
             MachineRepository machineRepository,
             WorkOrderRepository workOrderRepository,
             PredictionRepository predictionRepository,
             SensorReadingRepository sensorReadingRepository,
-            SensorRepository sensorRepository
+            SensorRepository sensorRepository,
+            IssueRepository issueRepository
     ) {
         this.machineRepository = machineRepository;
         this.workOrderRepository = workOrderRepository;
         this.predictionRepository = predictionRepository;
         this.sensorReadingRepository = sensorReadingRepository;
         this.sensorRepository = sensorRepository;
+        this.issueRepository = issueRepository;
     }
 
     @Override
@@ -180,19 +185,26 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     @Transactional(readOnly = true)
     public List<AIInsightResponse> getAIInsights(Long organizationId) {
-        return predictionRepository.findByMachine_OrganizationId(organizationId).stream()
-                .filter(p -> p.getMachine() != null)
-                .sorted(Comparator.comparing(p -> ((Prediction) p).getPredictedAt()).reversed())
+        return issueRepository
+                .findByMachine_OrganizationIdAndSourceOrderByCreatedAtDesc(organizationId, IssueSource.AI)
+                .stream()
+                .filter(issue -> issue.getMachine() != null)
                 .limit(5)
-                .map(p -> new AIInsightResponse(
-                        p.getId(),
-                        p.getMachine().getId(),
-                        p.getMachine().getName(),
-                        p.getMachine().getAssetId(),
-                        p.getExplanation(),
-                        p.getSeverity() != null ? p.getSeverity().name().toLowerCase() : "low",
-                        p.getFailureProbability() != null ? p.getFailureProbability().doubleValue() : 0.0
-                ))
+                .map(issue -> {
+                    Prediction prediction = issue.getPrediction();
+                    double confidence = (prediction != null && prediction.getFailureProbability() != null)
+                            ? prediction.getFailureProbability().doubleValue()
+                            : 0.0;
+                    return new AIInsightResponse(
+                            issue.getId(),
+                            issue.getMachine().getId(),
+                            issue.getMachine().getName(),
+                            issue.getMachine().getAssetId(),
+                            issue.getSummary(),
+                            issue.getSeverity() != null ? issue.getSeverity().name().toLowerCase() : "low",
+                            confidence
+                    );
+                })
                 .toList();
     }
 

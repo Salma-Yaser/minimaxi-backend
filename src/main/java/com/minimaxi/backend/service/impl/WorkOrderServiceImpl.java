@@ -1,22 +1,18 @@
 package com.minimaxi.backend.service.impl;
 
-import com.minimaxi.backend.dto.request.AddWorkOrderNoteRequest;
-import com.minimaxi.backend.dto.request.CreateWorkOrderRequest;
-import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
+import com.minimaxi.backend.dto.request.*;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
 import com.minimaxi.backend.entity.AppUser;
+import com.minimaxi.backend.entity.Issue;
 import com.minimaxi.backend.entity.WorkOrder;
-import com.minimaxi.backend.enums.NotificationType;
-import com.minimaxi.backend.enums.WorkOrderPriority;
-import com.minimaxi.backend.enums.WorkOrderStatus;
+import com.minimaxi.backend.enums.*;
 import com.minimaxi.backend.mapper.WorkOrderMapper;
 import com.minimaxi.backend.repository.*;
 import com.minimaxi.backend.service.NotificationService;
 import com.minimaxi.backend.service.WorkOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.minimaxi.backend.dto.request.CompleteWorkOrderRequest;
 import com.minimaxi.backend.entity.WorkOrderCompletion;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -311,6 +307,73 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                 "Work Order Completed",
                 "Work order completed: " + workOrder.getTitle()
         );
+    }
+    @Override
+    @Transactional
+    public WorkOrderResponse convertIssueToWorkOrder(Long issueId, ConvertIssueToWorkOrderRequest request) {
+
+        Issue issue = issueRepository.findById(issueId)
+                .orElseThrow(() -> new RuntimeException("Issue not found"));
+
+        if (issue.getStatus() == IssueStatus.CONVERTED_TO_WO) {
+            throw new RuntimeException("Issue is already converted to a work order");
+        }
+
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setOrganization(issue.getOrganization());
+        workOrder.setMachine(issue.getMachine());
+        workOrder.setIssue(issue);
+
+        workOrder.setCreatedByUser(
+                appUserRepository.findById(request.getCreatedByUserId())
+                        .orElseThrow(() -> new RuntimeException("User not found"))
+        );
+
+        if (request.getAssignedToUserId() != null) {
+            workOrder.setAssignedToUser(
+                    appUserRepository.findById(request.getAssignedToUserId())
+                            .orElseThrow(() -> new RuntimeException("Assigned user not found"))
+            );
+        }
+
+        // العنوان والوصف بييجوا تلقائياً من الـ Issue
+        // ملحوظة: WorkOrder.title أقصى طول 150 حرف، بينما Issue.summary لحد 200،
+        // فبنعمل truncate دفاعي عشان منقعش في validation error
+        String title = issue.getSummary();
+        workOrder.setTitle(title != null && title.length() > 150 ? title.substring(0, 150) : title);
+        workOrder.setDescription(issue.getDetails());
+
+        workOrder.setDueDate(request.getDueDate() != null ? LocalDate.parse(request.getDueDate()) : null);
+        workOrder.setEstimatedHours(request.getEstimatedHours());
+
+        // الجزء الأهم: aiSuggested بيتبني تلقائياً من مصدر الـ Issue، مش من الفرونت
+        workOrder.setAiSuggested(issue.getSource() == IssueSource.AI);
+
+        workOrder.setCreatedAt(Instant.now());
+        workOrder.setPriority(
+                request.getPriority() != null
+                        ? WorkOrderPriority.valueOf(request.getPriority().toUpperCase())
+                        : WorkOrderPriority.MEDIUM
+        );
+        workOrder.setStatus(WorkOrderStatus.OPEN);
+
+        WorkOrder saved = workOrderRepository.save(workOrder);
+
+        // قفل الـ Issue أوتوماتيكياً عشان منعملش work order تاني منها بالغلط
+        issue.setStatus(IssueStatus.CONVERTED_TO_WO);
+        issueRepository.save(issue);
+
+        if (saved.getAssignedToUser() != null) {
+            notificationService.notifyWorkOrderEvent(
+                    saved,
+                    saved.getAssignedToUser(),
+                    NotificationType.NEW_WORK_ORDER,
+                    "New Work Order Assigned",
+                    "New work order assigned: " + saved.getTitle()
+            );
+        }
+
+        return WorkOrderMapper.toResponse(saved);
     }
 
 }

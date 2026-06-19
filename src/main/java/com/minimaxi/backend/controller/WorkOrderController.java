@@ -1,10 +1,7 @@
 package com.minimaxi.backend.controller;
 
 import com.minimaxi.backend.config.JwtUtil;
-import com.minimaxi.backend.dto.request.AddWorkOrderNoteRequest;
-import com.minimaxi.backend.dto.request.CompleteWorkOrderRequest;
-import com.minimaxi.backend.dto.request.CreateWorkOrderRequest;
-import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
+import com.minimaxi.backend.dto.request.*;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
 import com.minimaxi.backend.service.WorkOrderService;
@@ -85,6 +82,13 @@ public class WorkOrderController {
     ) {
         workOrderService.completeWorkOrder(id, request);
         return Map.of("success", true, "message", "Work order " + id + " marked as completed.");
+    }
+
+    @PostMapping("/from-issue/{issueId}")
+    public WorkOrderResponse convertIssueToWorkOrder(
+            @PathVariable Long issueId,
+            @RequestBody ConvertIssueToWorkOrderRequest request) {
+        return workOrderService.convertIssueToWorkOrder(issueId, request);
     }
 
 }

@@ -6,17 +6,6 @@ import java.util.List;
 
 public interface DashboardService {
 
-    /*DashboardStatsResponse getStats();
-
-    List<HealthDistributionResponse> getHealthDistribution();
-
-    List<FailureTrendResponse> getFailureTrend(String period);
-
-    List<SensorTrendResponse> getSensorTrends();
-
-    List<AIInsightResponse> getAIInsights();
-
-    */
 
 
     DashboardStatsResponse getStats(Long organizationId);

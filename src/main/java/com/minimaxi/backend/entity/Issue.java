@@ -32,9 +32,10 @@ public class Issue {
     @JoinColumn(name = "machine_id", nullable = false)
     private Machine machine;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by_user_id", nullable = false)
+    // Nullable: AI-generated issues (source = AI) have no human creator.
+    // Only MANUAL issues are expected to carry a createdByUser.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
     private AppUser createdByUser;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -48,6 +49,7 @@ public class Issue {
 
     @Column(name = "details", length = Integer.MAX_VALUE)
     private String details;
+
     @NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)

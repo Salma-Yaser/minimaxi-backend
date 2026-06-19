@@ -1,10 +1,14 @@
 package com.minimaxi.backend.scheduler;
 
+import com.minimaxi.backend.entity.Issue;
 import com.minimaxi.backend.entity.Machine;
 import com.minimaxi.backend.entity.Prediction;
+import com.minimaxi.backend.enums.IssueSource;
+import com.minimaxi.backend.enums.IssueStatus;
 import com.minimaxi.backend.enums.IssueType;
 import com.minimaxi.backend.enums.MachineStatus;
 import com.minimaxi.backend.enums.PredictionSeverity;
+import com.minimaxi.backend.repository.IssueRepository;
 import com.minimaxi.backend.repository.MachineRepository;
 import com.minimaxi.backend.repository.PredictionRepository;
 import com.minimaxi.backend.service.SensorGeneratorService;
@@ -22,6 +26,7 @@ public class PredictionScheduler {
 
     private final MachineRepository machineRepository;
     private final PredictionRepository predictionRepository;
+    private final IssueRepository issueRepository;
     private final SensorGeneratorService sensorGenerator;
     private final NotificationService notificationService;
     private final RestTemplate restTemplate;
@@ -29,12 +34,18 @@ public class PredictionScheduler {
     private static final String AI_URL =
             "https://predictive-maintenance-ai-5n5m.onrender.com/predict";
 
+    // الحالات اللي "بتعتبر لسه مفتوحة" — لو موجودة لنفس الماكينة منمنعش إنشاء issue جديدة
+    private static final List<IssueStatus> OPEN_STATUSES =
+            List.of(IssueStatus.OPEN, IssueStatus.IN_REVIEW);
+
     public PredictionScheduler(MachineRepository machineRepository,
                                PredictionRepository predictionRepository,
+                               IssueRepository issueRepository,
                                SensorGeneratorService sensorGenerator,
                                NotificationService notificationService) {
         this.machineRepository = machineRepository;
         this.predictionRepository = predictionRepository;
+        this.issueRepository = issueRepository;
         this.sensorGenerator = sensorGenerator;
         this.notificationService = notificationService;
         this.restTemplate = new RestTemplate();
@@ -86,6 +97,7 @@ public class PredictionScheduler {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void savePrediction(Machine machine, Map response) {
         Prediction prediction = new Prediction();
         prediction.setOrganization(machine.getOrganization());
@@ -114,6 +126,89 @@ public class PredictionScheduler {
                 prediction.getSeverity() == PredictionSeverity.CRITICAL) {
             notificationService.notifyCriticalPrediction(prediction);
         }
+
+        // Auto-create an Issue من الـ HIGH-severity prediction
+        if (prediction.getSeverity() == PredictionSeverity.HIGH) {
+            createIssueFromPredictionIfNeeded(machine, prediction, response);
+        }
+    }
+
+    /**
+     * بينشئ Issue تلقائية من prediction بدرجة HIGH، إلا لو فيه issue مفتوحة
+     * (OPEN أو IN_REVIEW) أصلاً لنفس الماكينة — في الحالة دي منعشل تكرار.
+     */
+    @SuppressWarnings("unchecked")
+    private void createIssueFromPredictionIfNeeded(Machine machine, Prediction prediction, Map response) {
+        boolean hasOpenIssue = issueRepository
+                .findFirstByMachineIdAndStatusInOrderByCreatedAtDesc(machine.getId(), OPEN_STATUSES)
+                .isPresent();
+
+        if (hasOpenIssue) {
+            System.out.println("Skipped issue creation for " + machine.getName()
+                    + " — an open issue already exists.");
+            return;
+        }
+
+        Issue issue = new Issue();
+        issue.setOrganization(machine.getOrganization());
+        issue.setMachine(machine);
+        issue.setCreatedByUser(null); // AI-generated، مفيش human creator
+        issue.setPrediction(prediction);
+        issue.setSource(IssueSource.AI);
+        issue.setSeverity(prediction.getSeverity());
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setCreatedAt(Instant.now());
+
+        String workOrderText = (String) response.get("work_order");
+        issue.setSummary(truncate(
+                (workOrderText != null && !workOrderText.isBlank())
+                        ? workOrderText
+                        : "High risk prediction for " + machine.getName(),
+                200
+        ));
+
+        issue.setDetails(buildDetails(response));
+
+        issueRepository.save(issue);
+        System.out.println("Issue auto-created from prediction for: " + machine.getName());
+    }
+
+    private String buildDetails(Map response) {
+        StringBuilder sb = new StringBuilder();
+
+        Object problemSensor = response.get("problem_sensor");
+        if (problemSensor != null) {
+            sb.append("Problem sensor: ").append(problemSensor).append("\n");
+        }
+
+        Object currentValue = response.get("current_value");
+        if (currentValue != null) {
+            sb.append("Current value: ").append(currentValue).append("\n");
+        }
+
+        Object normalMin = response.get("normal_min");
+        Object normalMax = response.get("normal_max");
+        if (normalMin != null && normalMax != null) {
+            sb.append("Normal range: ").append(normalMin).append(" - ").append(normalMax).append("\n");
+        }
+
+        Object rul = response.get("RUL");
+        if (rul != null) {
+            sb.append("Remaining useful life (cycles): ").append(rul).append("\n");
+        }
+
+        Object confidence = response.get("confidence");
+        if (confidence != null) {
+            double confPct = ((Number) confidence).doubleValue() * 100;
+            sb.append("Model confidence: ").append(Math.round(confPct * 10.0) / 10.0).append("%\n");
+        }
+
+        return sb.toString().stripTrailing();
+    }
+
+    private String truncate(String text, int maxLen) {
+        if (text == null) return null;
+        return text.length() <= maxLen ? text : text.substring(0, maxLen);
     }
 
     private PredictionSeverity mapRiskToSeverity(Integer riskLevel) {

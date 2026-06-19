@@ -1,9 +1,6 @@
 package com.minimaxi.backend.service;
 
-import com.minimaxi.backend.dto.request.AddWorkOrderNoteRequest;
-import com.minimaxi.backend.dto.request.CompleteWorkOrderRequest;
-import com.minimaxi.backend.dto.request.CreateWorkOrderRequest;
-import com.minimaxi.backend.dto.request.UpdateWorkOrderRequest;
+import com.minimaxi.backend.dto.request.*;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
 
@@ -23,4 +20,7 @@ public interface WorkOrderService {
 
     WorkOrderNoteResponse addWorkOrderNote(Long id, AddWorkOrderNoteRequest request);
 
-    void completeWorkOrder(Long workOrderId, CompleteWorkOrderRequest request);}
+    void completeWorkOrder(Long workOrderId, CompleteWorkOrderRequest request);
+
+    WorkOrderResponse convertIssueToWorkOrder(Long issueId, ConvertIssueToWorkOrderRequest request);
+}
