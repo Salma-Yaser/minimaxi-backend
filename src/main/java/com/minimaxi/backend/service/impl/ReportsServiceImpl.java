@@ -88,21 +88,15 @@ public class ReportsServiceImpl implements ReportsService {
                 ));
 
         List<ReportsResponse.MonthlyDowntime> monthlyDowntime = MONTH_ORDER.stream()
-                .filter(afterHoursPerMonth::containsKey)
                 .map(month -> {
-                    double after  = Math.round(afterHoursPerMonth.get(month) * 10.0) / 10.0;
+                    double after  = Math.round(afterHoursPerMonth.getOrDefault(month, 0.0) * 10.0) / 10.0;
                     double before = Math.round(after * BEFORE_HOURS_FACTOR * 10.0) / 10.0;
                     return new ReportsResponse.MonthlyDowntime(month, before, after);
                 })
                 .collect(Collectors.toList());
 
-        if (monthlyDowntime.isEmpty()) {
-            monthlyDowntime = List.of(
-                    new ReportsResponse.MonthlyDowntime("Jan", 22.0, 15.0),
-                    new ReportsResponse.MonthlyDowntime("Feb", 20.0, 14.0),
-                    new ReportsResponse.MonthlyDowntime("Mar", 21.0, 13.0)
-            );
-        }
+        // ملحوظة: monthlyDowntime دلوقتي بيرجع دايماً 12 عنصر (شهر، حتى لو
+        // القيمة صفر)، فمحتاجناش fallback list فاضية بعد كده.
 
         // ── Accuracy Trend — من الـ predictions (نسبة HIGH+MEDIUM كل شهر) ────
         // نحسب accuracy = (HIGH + MEDIUM) / total predictions لكل شهر * 100
@@ -126,31 +120,35 @@ public class ReportsServiceImpl implements ReportsService {
                 ));
 
         List<ReportsResponse.AccuracyTrend> accuracyTrend = MONTH_ORDER.stream()
-                .filter(totalPerMonth::containsKey)
                 .map(month -> {
-                    long tot     = totalPerMonth.getOrDefault(month, 1L);
+                    long tot     = totalPerMonth.getOrDefault(month, 0L);
                     long correct = correctPerMonth.getOrDefault(month, 0L);
-                    double acc   = Math.round((double) correct / tot * 100 * 10.0) / 10.0;
+                    double acc   = tot > 0
+                            ? Math.round((double) correct / tot * 100 * 10.0) / 10.0
+                            : 0.0;
                     return new ReportsResponse.AccuracyTrend(month, acc);
                 })
                 .collect(Collectors.toList());
 
-        if (accuracyTrend.isEmpty()) {
-            accuracyTrend = List.of(
-                    new ReportsResponse.AccuracyTrend("Jan", 76.0),
-                    new ReportsResponse.AccuracyTrend("Feb", 78.0),
-                    new ReportsResponse.AccuracyTrend("Mar", 80.0)
-            );
-        }
+        // ملحوظة: accuracyTrend دلوقتي بيرجع دايماً 12 عنصر، فمحتاجناش
+        // fallback list فاضية بعد كده.
 
-        // ── Monthly Cost — static ─────────────────────────────────────────────
+        // ── Monthly Cost — static (لسه مش متحسوبة من الداتا، انتظار قرار
+        //    بخصوص مصدر الـ cost الحقيقي). موسعة لـ 12 شهر عشان الجراف
+        //    يفضل متناسق زي باقي الـ charts.
         List<ReportsResponse.MonthlyCost> monthlyCost = List.of(
                 new ReportsResponse.MonthlyCost("Jan", 58.0, 45.0),
                 new ReportsResponse.MonthlyCost("Feb", 62.0, 42.0),
                 new ReportsResponse.MonthlyCost("Mar", 60.0, 40.0),
                 new ReportsResponse.MonthlyCost("Apr", 55.0, 38.0),
                 new ReportsResponse.MonthlyCost("May", 53.0, 36.0),
-                new ReportsResponse.MonthlyCost("Jun", 50.0, 34.0)
+                new ReportsResponse.MonthlyCost("Jun", 50.0, 34.0),
+                new ReportsResponse.MonthlyCost("Jul", 50.0, 34.0),
+                new ReportsResponse.MonthlyCost("Aug", 50.0, 34.0),
+                new ReportsResponse.MonthlyCost("Sep", 50.0, 34.0),
+                new ReportsResponse.MonthlyCost("Oct", 50.0, 34.0),
+                new ReportsResponse.MonthlyCost("Nov", 50.0, 34.0),
+                new ReportsResponse.MonthlyCost("Dec", 50.0, 34.0)
         );
 
         // ── Technician Performance — من الـ DB ───────────────────────────────

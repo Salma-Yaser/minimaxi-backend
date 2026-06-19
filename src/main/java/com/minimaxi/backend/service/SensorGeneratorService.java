@@ -21,62 +21,114 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    // sf zones:
-    // 0.00 - 0.29 → LOW    (داخل normal range)
-    // 0.30 - 0.59 → MEDIUM (~1% فوق normal max)
-    // 0.60 - 1.00 → HIGH   (~2%+ فوق normal max)
+    // Stronger stress levels
     private static final double[] SF_STRESS_PERCENT = {
-            0.0,   // sf < 0.30 → 0% stress → LOW
-            0.012, // sf 0.30-0.59 → 1.2% stress → MEDIUM
-            0.025  // sf >= 0.60 → 2.5% stress → HIGH
+            0.0,   // LOW
+            0.03,  // MEDIUM
+            0.08   // HIGH
     };
 
     public List<Double> generate(Machine machine) {
+
         String assetId = machine.getAssetId() != null
-                ? machine.getAssetId() : "MCH-" + machine.getId();
+                ? machine.getAssetId()
+                : "MCH-" + machine.getId();
 
         long timeSlot = System.currentTimeMillis() / 600000;
+
         Random r = new Random(assetId.hashCode() + timeSlot);
 
-        return generate21(0.10, r);  // دايماً healthy
+        // FIX #1
+        double sf = computeStressFromAssetId(assetId, machine);
+
+        System.out.println(
+                "Machine=" + assetId +
+                        " Criticality=" + machine.getCriticality() +
+                        " SF=" + sf
+        );
+
+        return generate21(sf, r);
     }
 
     private double computeStressFromAssetId(String assetId, Machine machine) {
+
         int hash = Math.abs(assetId.hashCode());
+
         double baseSf = (hash % 100) / 100.0;
 
         String criticality = machine.getCriticality() != null
-                ? machine.getCriticality().name().toLowerCase() : "medium";
+                ? machine.getCriticality().name().toLowerCase()
+                : "medium";
 
-        if ("high".equals(criticality))     baseSf = Math.min(baseSf + 0.10, 1.0);
-        else if ("low".equals(criticality)) baseSf = Math.max(baseSf - 0.10, 0.0);
+        if ("high".equals(criticality)) {
+            baseSf = Math.min(baseSf + 0.20, 1.0);
+        }
+        else if ("low".equals(criticality)) {
+            baseSf = Math.max(baseSf - 0.20, 0.0);
+        }
 
         return baseSf;
     }
 
     private List<Double> generate21(double sf, Random r) {
+
         double[] out = new double[21];
 
-        // نحدد الـ stress percent بناءً على الـ sf zone
         double stressPct;
-        if (sf < 0.30)      stressPct = SF_STRESS_PERCENT[0];
-        else if (sf < 0.60) stressPct = SF_STRESS_PERCENT[1];
-        else                stressPct = SF_STRESS_PERCENT[2];
+
+        if (sf < 0.30) {
+            stressPct = SF_STRESS_PERCENT[0];
+        }
+        else if (sf < 0.60) {
+            stressPct = SF_STRESS_PERCENT[1];
+        }
+        else {
+            stressPct = SF_STRESS_PERCENT[2];
+        }
 
         for (int i = 0; i < 21; i++) {
+
             double min = NORMAL_MIN[i];
             double max = NORMAL_MAX[i];
 
-            // base داخل الـ normal range
             double baseValue = (max - min < 0.001)
                     ? min
                     : min + r.nextDouble() * (max - min);
 
-            // stress = نسبة ثابتة من الـ max + شوية random
-            double stress = stressPct * max * (0.8 + r.nextDouble() * 0.4);
+            double stress;
+
+            // Important sensors according to AI feature importance:
+            // sensor_4, sensor_7, sensor_9, sensor_11,
+            // sensor_12, sensor_15, sensor_20, sensor_21
+
+            switch (i) {
+
+                case 3:   // sensor_4
+                case 6:   // sensor_7
+                case 8:   // sensor_9
+                case 10:  // sensor_11
+                case 11:  // sensor_12
+                case 14:  // sensor_15
+                case 19:  // sensor_20
+                case 20:  // sensor_21
+
+                    stress = stressPct * max *
+                            (0.8 + r.nextDouble() * 0.4);
+                    break;
+
+                default:
+
+                    stress = stressPct * max * 0.2 *
+                            (0.8 + r.nextDouble() * 0.4);
+            }
 
             out[i] = round(baseValue + stress);
         }
+
+        System.out.println(
+                "Generated Sensors => " +
+                        java.util.Arrays.toString(out)
+        );
 
         return List.of(
                 out[0], out[1], out[2], out[3], out[4], out[5], out[6],
