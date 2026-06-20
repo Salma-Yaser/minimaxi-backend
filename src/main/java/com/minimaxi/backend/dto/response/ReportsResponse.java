@@ -37,6 +37,15 @@ public class ReportsResponse {
     @JsonProperty("technician_performance")
     private List<TechnicianPerformance> technicianPerformance;
 
+    @JsonProperty("mttr_mtbf")
+    private MttrMtbf mttrMtbf;
+
+    @JsonProperty("top_problem_machines")
+    private List<TopProblemMachine> topProblemMachines;
+
+    @JsonProperty("top_spare_parts")
+    private List<TopSparePart> topSpareParts;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -101,5 +110,50 @@ public class ReportsResponse {
             this.totalHours  = completed * avgTime;
             this.successRate = 94.0;
         }
+    }
+
+    // MTBF: متوسط الوقت بين الأعطال (بالساعات) لكل الماكينات مجمّعة
+    // MTTR: متوسط وقت الإصلاح (بالساعات) لكل work order مقفولة
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MttrMtbf {
+        @JsonProperty("mttr_hours")
+        private Double mttrHours;
+
+        @JsonProperty("mtbf_hours")
+        private Double mtbfHours;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TopProblemMachine {
+        @JsonProperty("machine_id")
+        private Long machineId;
+
+        @JsonProperty("machine_name")
+        private String machineName;
+
+        @JsonProperty("work_order_count")
+        private Long workOrderCount;
+
+        @JsonProperty("downtime_hours")
+        private Double downtimeHours;
+
+        private Double score;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TopSparePart {
+        private String name;
+
+        @JsonProperty("usage_count")
+        private Long usageCount;
+
+        @JsonProperty("total_cost")
+        private Double totalCost;
     }
 }
