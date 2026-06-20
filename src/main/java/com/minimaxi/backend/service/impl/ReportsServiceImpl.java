@@ -1,10 +1,16 @@
 package com.minimaxi.backend.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minimaxi.backend.dto.response.ReportsResponse;
-import com.minimaxi.backend.entity.WorkOrder;
-import com.minimaxi.backend.enums.PredictionSeverity;
+import com.minimaxi.backend.entity.WorkOrderCompletion;
+import com.minimaxi.backend.entity.WorkOrderRating;
+import com.minimaxi.backend.enums.IssueSource;
+import com.minimaxi.backend.enums.IssueStatus;
 import com.minimaxi.backend.enums.WorkOrderStatus;
+import com.minimaxi.backend.repository.IssueRepository;
 import com.minimaxi.backend.repository.PredictionRepository;
+import com.minimaxi.backend.repository.WorkOrderRatingRepository;
 import com.minimaxi.backend.repository.WorkOrderRepository;
 import com.minimaxi.backend.service.ReportsService;
 import org.springframework.stereotype.Service;
@@ -21,6 +27,9 @@ public class ReportsServiceImpl implements ReportsService {
 
     private final WorkOrderRepository workOrderRepository;
     private final PredictionRepository predictionRepository;
+    private final IssueRepository issueRepository;
+    private final WorkOrderRatingRepository workOrderRatingRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ترتيب الشهور الصح
     private static final List<String> MONTH_ORDER = List.of(
@@ -33,10 +42,17 @@ public class ReportsServiceImpl implements ReportsService {
     // لحد ما يبقى عندنا داتا تاريخية حقيقية قبل تركيب النظام).
     private static final double BEFORE_HOURS_FACTOR = 1.8;
 
+    // نفس الفكرة لـ monthly_cost: before تقديري كنسبة من الـ after الفعلي
+    private static final double BEFORE_COST_FACTOR = 1.6;
+
     public ReportsServiceImpl(WorkOrderRepository workOrderRepository,
-                              PredictionRepository predictionRepository) {
+                              PredictionRepository predictionRepository,
+                              IssueRepository issueRepository,
+                              WorkOrderRatingRepository workOrderRatingRepository) {
         this.workOrderRepository  = workOrderRepository;
         this.predictionRepository = predictionRepository;
+        this.issueRepository      = issueRepository;
+        this.workOrderRatingRepository = workOrderRatingRepository;
     }
 
     @Override
@@ -49,10 +65,10 @@ public class ReportsServiceImpl implements ReportsService {
                                 wo.getOrganization().getId().equals(organizationId)))
                 .toList();
 
-        var allPredictions = predictionRepository.findAll().stream()
-                .filter(p -> organizationId == null ||
-                        (p.getOrganization() != null &&
-                                p.getOrganization().getId().equals(organizationId)))
+        var allIssues = issueRepository.findAll().stream()
+                .filter(i -> organizationId == null ||
+                        (i.getOrganization() != null &&
+                                i.getOrganization().getId().equals(organizationId)))
                 .toList();
 
         DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("MMM")
@@ -72,10 +88,6 @@ public class ReportsServiceImpl implements ReportsService {
         preventiveVsReactive.put("reactive",   100 - preventivePct);
 
         // ── Monthly Downtime — من الـ Work Orders الفعلية المقفولة ──────────
-        // after_hours لكل شهر = مجموع (closedAt - createdAt) بالساعات لكل
-        // work order اتقفلت في الشهر ده (مبني على closedAt، مش createdAt،
-        // عشان نعرف فعلياً امتى الماكينة رجعت تشتغل).
-        // before_hours = تقديري (factor ثابت) لحد ما يبقى عندنا داتا تاريخية حقيقية.
         Map<String, Double> afterHoursPerMonth = allWorkOrders.stream()
                 .filter(wo -> wo.getClosedAt() != null
                         && wo.getCreatedAt() != null
@@ -95,34 +107,31 @@ public class ReportsServiceImpl implements ReportsService {
                 })
                 .collect(Collectors.toList());
 
-        // ملحوظة: monthlyDowntime دلوقتي بيرجع دايماً 12 عنصر (شهر، حتى لو
-        // القيمة صفر)، فمحتاجناش fallback list فاضية بعد كده.
-
-        // ── Accuracy Trend — من الـ predictions (نسبة HIGH+MEDIUM كل شهر) ────
-        // نحسب accuracy = (HIGH + MEDIUM) / total predictions لكل شهر * 100
-        Map<String, Long> totalPerMonth = allPredictions.stream()
-                .filter(p -> p.getSeverity() != null)
+        // ── Accuracy Trend — من الـ Issues (مصدرها AI) ───────────────────────
+        // "التنبؤ صح" = الـ Issue (source=AI) اتعمللها أي action من اليوزر،
+        // يعني خرجت من حالة OPEN (IN_REVIEW أو CONVERTED_TO_WO أو CLOSED) —
+        // مهما كان وقت الإجراء. accuracy لكل شهر = نسبة الـ AI issues
+        // "المتفاعل معاها" من إجمالي AI issues اتعملت في نفس الشهر (حسب createdAt).
+        Map<String, Long> aiIssuesPerMonth = allIssues.stream()
+                .filter(i -> i.getSource() == IssueSource.AI && i.getCreatedAt() != null)
                 .collect(Collectors.groupingBy(
-                        p -> p.getPredictedAt()
-                                .atZone(ZoneOffset.UTC)
-                                .format(monthFmt),
+                        i -> i.getCreatedAt().atZone(ZoneOffset.UTC).format(monthFmt),
                         Collectors.counting()
                 ));
 
-        Map<String, Long> correctPerMonth = allPredictions.stream()
-                .filter(p -> p.getSeverity() == PredictionSeverity.HIGH
-                        || p.getSeverity() == PredictionSeverity.MEDIUM)
+        Map<String, Long> aiIssuesActedOnPerMonth = allIssues.stream()
+                .filter(i -> i.getSource() == IssueSource.AI
+                        && i.getCreatedAt() != null
+                        && i.getStatus() != IssueStatus.OPEN)
                 .collect(Collectors.groupingBy(
-                        p -> p.getPredictedAt()
-                                .atZone(ZoneOffset.UTC)
-                                .format(monthFmt),
+                        i -> i.getCreatedAt().atZone(ZoneOffset.UTC).format(monthFmt),
                         Collectors.counting()
                 ));
 
         List<ReportsResponse.AccuracyTrend> accuracyTrend = MONTH_ORDER.stream()
                 .map(month -> {
-                    long tot     = totalPerMonth.getOrDefault(month, 0L);
-                    long correct = correctPerMonth.getOrDefault(month, 0L);
+                    long tot     = aiIssuesPerMonth.getOrDefault(month, 0L);
+                    long correct = aiIssuesActedOnPerMonth.getOrDefault(month, 0L);
                     double acc   = tot > 0
                             ? Math.round((double) correct / tot * 100 * 10.0) / 10.0
                             : 0.0;
@@ -130,28 +139,26 @@ public class ReportsServiceImpl implements ReportsService {
                 })
                 .collect(Collectors.toList());
 
-        // ملحوظة: accuracyTrend دلوقتي بيرجع دايماً 12 عنصر، فمحتاجناش
-        // fallback list فاضية بعد كده.
+        // ── Monthly Cost — من تكلفة الـ spare parts الفعلية في الـ WO completions ──
+        Map<String, Double> afterCostPerMonth = allWorkOrders.stream()
+                .filter(wo -> wo.getCompletion() != null
+                        && wo.getCompletion().getCompletedAt() != null)
+                .collect(Collectors.groupingBy(
+                        wo -> wo.getCompletion().getCompletedAt()
+                                .atZone(ZoneOffset.UTC).format(monthFmt),
+                        Collectors.summingDouble(wo -> sparePartsCost(wo.getCompletion()))
+                ));
 
-        // ── Monthly Cost — static (لسه مش متحسوبة من الداتا، انتظار قرار
-        //    بخصوص مصدر الـ cost الحقيقي). موسعة لـ 12 شهر عشان الجراف
-        //    يفضل متناسق زي باقي الـ charts.
-        List<ReportsResponse.MonthlyCost> monthlyCost = List.of(
-                new ReportsResponse.MonthlyCost("Jan", 58.0, 45.0),
-                new ReportsResponse.MonthlyCost("Feb", 62.0, 42.0),
-                new ReportsResponse.MonthlyCost("Mar", 60.0, 40.0),
-                new ReportsResponse.MonthlyCost("Apr", 55.0, 38.0),
-                new ReportsResponse.MonthlyCost("May", 53.0, 36.0),
-                new ReportsResponse.MonthlyCost("Jun", 50.0, 34.0),
-                new ReportsResponse.MonthlyCost("Jul", 50.0, 34.0),
-                new ReportsResponse.MonthlyCost("Aug", 50.0, 34.0),
-                new ReportsResponse.MonthlyCost("Sep", 50.0, 34.0),
-                new ReportsResponse.MonthlyCost("Oct", 50.0, 34.0),
-                new ReportsResponse.MonthlyCost("Nov", 50.0, 34.0),
-                new ReportsResponse.MonthlyCost("Dec", 50.0, 34.0)
-        );
+        List<ReportsResponse.MonthlyCost> monthlyCost = MONTH_ORDER.stream()
+                .map(month -> {
+                    // الكلفة بالـ $K زي ما الـ frontend متوقع (58.0 = $58K)
+                    double afterK  = Math.round((afterCostPerMonth.getOrDefault(month, 0.0) / 1000.0) * 100.0) / 100.0;
+                    double beforeK = Math.round((afterK * BEFORE_COST_FACTOR) * 100.0) / 100.0;
+                    return new ReportsResponse.MonthlyCost(month, beforeK, afterK);
+                })
+                .collect(Collectors.toList());
 
-        // ── Technician Performance — من الـ DB ───────────────────────────────
+        // ── Technician Performance — من الـ DB + ratings الحقيقية ───────────
         Map<String, List<Long>> techMinutesMap = allWorkOrders.stream()
                 .filter(wo -> wo.getStatus() == WorkOrderStatus.COMPLETED
                         && wo.getAssignedToUser() != null
@@ -162,6 +169,20 @@ public class ReportsServiceImpl implements ReportsService {
                                 wo -> (long) wo.getCompletion().getTimeSpentMinutes(),
                                 Collectors.toList()
                         )
+                ));
+
+        var allRatings = workOrderRatingRepository.findAll().stream()
+                .filter(r -> organizationId == null
+                        || (r.getTechnicianUser() != null
+                        && r.getTechnicianUser().getOrganization() != null
+                        && r.getTechnicianUser().getOrganization().getId().equals(organizationId)))
+                .toList();
+
+        Map<String, List<Integer>> starsPerTechnician = allRatings.stream()
+                .filter(r -> r.getTechnicianUser() != null && r.getStars() != null)
+                .collect(Collectors.groupingBy(
+                        r -> r.getTechnicianUser().getFullName(),
+                        Collectors.mapping(WorkOrderRating::getStars, Collectors.toList())
                 ));
 
         List<ReportsResponse.TechnicianPerformance> technicianPerformance =
@@ -176,13 +197,22 @@ public class ReportsServiceImpl implements ReportsService {
                                     .orElse(210) / 60.0;
                             double totalHrs = mins.stream()
                                     .mapToLong(Long::longValue).sum() / 60.0;
+
+                            List<Integer> stars = starsPerTechnician.getOrDefault(name, List.of());
+                            double rating = stars.isEmpty()
+                                    ? 0.0
+                                    : round2(stars.stream().mapToInt(Integer::intValue).average().orElse(0.0));
+                            double successRate = stars.isEmpty()
+                                    ? 0.0
+                                    : round2(stars.stream().filter(s -> s >= 4).count() * 100.0 / stars.size());
+
                             return new ReportsResponse.TechnicianPerformance(
                                     name,
                                     count,
                                     round2(avgHours),
-                                    4.5,
+                                    rating,
                                     round2(totalHrs),
-                                    94.0);
+                                    successRate);
                         })
                         .collect(Collectors.toList());
 
@@ -192,10 +222,34 @@ public class ReportsServiceImpl implements ReportsService {
                             "No data", 0L, 0.0, 0.0, 0.0, 0.0));
         }
 
+        // ── Top-level KPIs — ديناميكية من الداتا فوق ─────────────────────────
+        double avgBeforeHours = monthlyDowntime.stream()
+                .mapToDouble(ReportsResponse.MonthlyDowntime::getBeforeHours).average().orElse(0.0);
+        double avgAfterHours = monthlyDowntime.stream()
+                .mapToDouble(ReportsResponse.MonthlyDowntime::getAfterHours).average().orElse(0.0);
+        double downtimeReduction = avgBeforeHours > 0
+                ? round1((avgBeforeHours - avgAfterHours) / avgBeforeHours * 100.0)
+                : 0.0;
+
+        // آخر شهر فيه بيانات accuracy فعلية (مش صفر)
+        double predictionAccuracy = 0.0;
+        for (int i = accuracyTrend.size() - 1; i >= 0; i--) {
+            Double acc = accuracyTrend.get(i).getAccuracy();
+            if (acc != null && acc > 0) {
+                predictionAccuracy = acc;
+                break;
+            }
+        }
+
+        double costSavings = monthlyCost.stream()
+                .mapToDouble(mc -> (mc.getBefore() - mc.getAfter()) * 1000.0) // من $K لـ $
+                .sum();
+        costSavings = Math.round(costSavings * 100.0) / 100.0;
+
         return new ReportsResponse(
-                20.0,
-                95.0,
-                150000.0,
+                downtimeReduction,
+                predictionAccuracy,
+                costSavings,
                 preventiveVsReactive,
                 monthlyDowntime,
                 monthlyCost,
@@ -204,7 +258,38 @@ public class ReportsServiceImpl implements ReportsService {
         );
     }
 
+    /**
+     * بيقرأ JSON الخاص بالـ spare parts المخزنة في WorkOrderCompletion.spareParts
+     * ويحسب مجموع (cost × quantity). لو الفرونت لسه مبعتش cost (داتا قديمة)،
+     * أي قطعة من غير cost بتتحسب كـ 0 بدل ما تكسر الحساب.
+     */
+    private double sparePartsCost(WorkOrderCompletion completion) {
+        String json = completion.getSpareParts();
+        if (json == null || json.isBlank()) return 0.0;
+
+        try {
+            JsonNode parts = objectMapper.readTree(json);
+            if (!parts.isArray()) return 0.0;
+
+            double sum = 0.0;
+            for (JsonNode part : parts) {
+                double cost = part.has("cost") && !part.get("cost").isNull()
+                        ? part.get("cost").asDouble(0.0) : 0.0;
+                double qty = part.has("quantity") && !part.get("quantity").isNull()
+                        ? part.get("quantity").asDouble(1.0) : 1.0;
+                sum += cost * qty;
+            }
+            return sum;
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
     private double round2(double v) {
         return Math.round(v * 100.0) / 100.0;
+    }
+
+    private double round1(double v) {
+        return Math.round(v * 10.0) / 10.0;
     }
 }
