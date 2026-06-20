@@ -9,7 +9,15 @@ public class WorkOrderMapper {
     private WorkOrderMapper() {
     }
 
+    // النسخة الأصلية — تفضل زي ما هي، isRated بترجع null لو مش معروفة
+    // (الأماكن اللي مش محتاجة الـ rating status، زي create/update/convert)
     public static WorkOrderResponse toResponse(WorkOrder workOrder) {
+        return toResponse(workOrder, null);
+    }
+
+    // النسخة الجديدة — تستخدم لما عندنا معلومة الـ rating جاهزة
+    // (مثلاً getWorkOrderById بعد ما يسأل WorkOrderRatingRepository)
+    public static WorkOrderResponse toResponse(WorkOrder workOrder, Boolean isRated) {
         return WorkOrderResponse.builder()
                 .id(workOrder.getId())
                 .woNumber("WO-" + workOrder.getId())
@@ -45,6 +53,7 @@ public class WorkOrderMapper {
                 .completedAt(workOrder.getClosedAt() != null ? workOrder.getClosedAt().toString() : null)
                 .estimatedHours(workOrder.getEstimatedHours())
                 .actualHours(null)
+                .isRated(isRated)
                 .build();
     }
 }

@@ -48,5 +48,9 @@ public class WorkOrderResponse {
     @JsonProperty("actual_hours")
     private Integer actualHours;
 
+    // true لو الـ work order دي اتقيّمت قبل كده (عبر POST /api/work-orders/{id}/rate)
+    @JsonProperty("is_rated")
+    private Boolean isRated;
+
     // parts_needed is missing
 }

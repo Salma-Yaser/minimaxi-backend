@@ -78,7 +78,10 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     public WorkOrderResponse getWorkOrderById(Long id) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work order not found with id: " + id));
-        return WorkOrderMapper.toResponse(workOrder);
+
+        boolean isRated = workOrderRatingRepository.findByWorkOrderId(id).isPresent();
+
+        return WorkOrderMapper.toResponse(workOrder, isRated);
     }
 
     @Override
