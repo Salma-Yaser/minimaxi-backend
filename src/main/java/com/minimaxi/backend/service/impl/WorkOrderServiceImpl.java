@@ -3,9 +3,7 @@ package com.minimaxi.backend.service.impl;
 import com.minimaxi.backend.dto.request.*;
 import com.minimaxi.backend.dto.response.WorkOrderNoteResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
-import com.minimaxi.backend.entity.AppUser;
-import com.minimaxi.backend.entity.Issue;
-import com.minimaxi.backend.entity.WorkOrder;
+import com.minimaxi.backend.entity.*;
 import com.minimaxi.backend.enums.*;
 import com.minimaxi.backend.mapper.WorkOrderMapper;
 import com.minimaxi.backend.repository.*;
@@ -13,8 +11,9 @@ import com.minimaxi.backend.service.NotificationService;
 import com.minimaxi.backend.service.WorkOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.minimaxi.backend.entity.WorkOrderCompletion;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.minimaxi.backend.dto.request.RateWorkOrderRequest;
+import com.minimaxi.backend.entity.WorkOrderRating;
 
 
 
@@ -34,6 +33,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final NotificationService notificationService;
+    private final WorkOrderRatingRepository workOrderRatingRepository;
     public WorkOrderServiceImpl(
             WorkOrderRepository workOrderRepository,
             OrganizationRepository organizationRepository,
@@ -42,7 +42,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             IssueRepository issueRepository,
             WorkOrderCompletionRepository workOrderCompletionRepository,
             NotificationRepository notificationRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            WorkOrderRatingRepository workOrderRatingRepository
     ) {
         this.workOrderRepository = workOrderRepository;
         this.organizationRepository = organizationRepository;
@@ -52,6 +53,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         this.workOrderCompletionRepository = workOrderCompletionRepository;
         this.notificationRepository = notificationRepository;
         this.notificationService = notificationService;
+        this.workOrderRatingRepository = workOrderRatingRepository;
     }
 
     @Override
@@ -304,8 +306,9 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                 workOrder,
                 workOrder.getCreatedByUser(),
                 NotificationType.WO_STATUS_CHANGED,
-                "Work Order Completed",
+                "Work Order Completed — Please Rate",
                 "Work order completed: " + workOrder.getTitle()
+                        + ". Please rate the technician's performance."
         );
     }
     @Override
@@ -375,5 +378,44 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
         return WorkOrderMapper.toResponse(saved);
     }
+
+
+    @Override
+    @Transactional
+    public void rateWorkOrder(Long workOrderId, RateWorkOrderRequest request) {
+
+        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
+                .orElseThrow(() -> new RuntimeException("Work order not found"));
+
+        if (workOrder.getStatus() != WorkOrderStatus.COMPLETED) {
+            throw new RuntimeException("Only completed work orders can be rated");
+        }
+
+        if (workOrder.getAssignedToUser() == null) {
+            throw new RuntimeException("Work order has no assigned technician to rate");
+        }
+
+        if (workOrderRatingRepository.findByWorkOrderId(workOrderId).isPresent()) {
+            throw new RuntimeException("This work order has already been rated");
+        }
+
+        if (request.getStars() == null || request.getStars() < 1 || request.getStars() > 5) {
+            throw new RuntimeException("Stars must be between 1 and 5");
+        }
+
+        WorkOrderRating rating = new WorkOrderRating();
+        rating.setWorkOrder(workOrder);
+        rating.setRatedByUser(
+                appUserRepository.findById(request.getRatedByUserId())
+                        .orElseThrow(() -> new RuntimeException("Rater user not found"))
+        );
+        rating.setTechnicianUser(workOrder.getAssignedToUser());
+        rating.setStars(request.getStars());
+        rating.setFeedback(request.getFeedback());
+        rating.setCreatedAt(Instant.now());
+
+        workOrderRatingRepository.save(rating);
+    }
+
 
 }

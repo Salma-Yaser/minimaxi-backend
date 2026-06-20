@@ -23,4 +23,5 @@ public interface WorkOrderService {
     void completeWorkOrder(Long workOrderId, CompleteWorkOrderRequest request);
 
     WorkOrderResponse convertIssueToWorkOrder(Long issueId, ConvertIssueToWorkOrderRequest request);
+    void rateWorkOrder(Long workOrderId, RateWorkOrderRequest request);
 }

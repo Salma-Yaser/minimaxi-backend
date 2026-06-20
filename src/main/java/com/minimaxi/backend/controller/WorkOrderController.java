@@ -7,6 +7,7 @@ import com.minimaxi.backend.dto.response.WorkOrderResponse;
 import com.minimaxi.backend.service.WorkOrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import com.minimaxi.backend.dto.request.RateWorkOrderRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -89,6 +90,13 @@ public class WorkOrderController {
             @PathVariable Long issueId,
             @RequestBody ConvertIssueToWorkOrderRequest request) {
         return workOrderService.convertIssueToWorkOrder(issueId, request);
+    }
+
+    @PostMapping("/{id}/rate")
+    public void rateWorkOrder(
+            @PathVariable Long id,
+            @RequestBody RateWorkOrderRequest request) {
+        workOrderService.rateWorkOrder(id, request);
     }
 
 }
