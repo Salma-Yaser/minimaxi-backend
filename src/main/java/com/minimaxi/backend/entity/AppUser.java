@@ -69,4 +69,8 @@ public class AppUser {
 
     @Column(name = "reset_otp_expires_at")
     private Instant resetOtpExpiresAt;
+
+    @Size(max = 255)
+    @Column(name = "fcm_token", length = 255)
+    private String fcmToken;
 }

@@ -24,4 +24,6 @@ public interface UserService {
     UserResponse inviteUser(InviteUserRequest request);
 
     UserResponse updateAvatar(Long id, UpdateAvatarRequest request);
+
+    UserResponse updateFcmToken(Long id, String token);
 }

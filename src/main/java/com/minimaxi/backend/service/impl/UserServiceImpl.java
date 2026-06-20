@@ -171,4 +171,13 @@ public class UserServiceImpl implements UserService {
         user.setAvatar(request.getAvatar());
         return toResponse(appUserRepository.save(user));
     }
+
+    @Override
+    @Transactional
+    public UserResponse updateFcmToken(Long id, String token) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        user.setFcmToken(token);
+        return toResponse(appUserRepository.save(user));
+    }
 }

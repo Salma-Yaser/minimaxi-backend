@@ -9,6 +9,7 @@ import com.minimaxi.backend.dto.response.UserResponse;
 import com.minimaxi.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import com.minimaxi.backend.dto.request.UpdateFcmTokenRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,14 @@ public class UserController {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return jwtUtil.extractOrganizationId(authHeader.substring(7));
+        }
+        return null;
+    }
+
+    private Long extractUserId(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return jwtUtil.extractUserId(authHeader.substring(7));
         }
         return null;
     }
@@ -74,5 +83,17 @@ public class UserController {
             @RequestBody UpdateAvatarRequest request
     ) {
         return userService.updateAvatar(id, request);
+    }
+
+    @PostMapping("/fcm-token")
+    public UserResponse updateFcmToken(
+            HttpServletRequest request,
+            @RequestBody UpdateFcmTokenRequest fcmRequest
+    ) {
+        Long userId = extractUserId(request);
+        if (userId == null) {
+            throw new RuntimeException("Unauthorized: invalid or missing token");
+        }
+        return userService.updateFcmToken(userId, fcmRequest.getToken());
     }
 }

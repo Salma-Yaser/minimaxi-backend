@@ -10,6 +10,7 @@ import com.minimaxi.backend.repository.AppUserRepository;
 import com.minimaxi.backend.repository.NotificationRepository;
 import com.minimaxi.backend.repository.UserAssetAssignmentRepository;
 import com.minimaxi.backend.service.NotificationService;
+import com.minimaxi.backend.service.PushNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,16 +25,19 @@ public class NotificationServiceImpl implements NotificationService {
     private final UserAssetAssignmentRepository userAssetAssignmentRepository;
 
     private final NotificationWebSocketHandler webSocketHandler;
+    private final PushNotificationService pushNotificationService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public NotificationServiceImpl(NotificationRepository notificationRepository,
                                    AppUserRepository appUserRepository,
                                    UserAssetAssignmentRepository userAssetAssignmentRepository,
-                                   NotificationWebSocketHandler webSocketHandler) {
+                                   NotificationWebSocketHandler webSocketHandler,
+                                   PushNotificationService pushNotificationService) {
         this.notificationRepository = notificationRepository;
         this.appUserRepository = appUserRepository;
         this.userAssetAssignmentRepository = userAssetAssignmentRepository;
         this.webSocketHandler = webSocketHandler;
+        this.pushNotificationService = pushNotificationService;
         this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper()
                 .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
     }
@@ -86,7 +90,7 @@ public class NotificationServiceImpl implements NotificationService {
 
         Notification saved = notificationRepository.save(notification);
 
-        // بعت real-time لو الـ user متصل
+        // بعت real-time لو الـ user متصل (WebSocket)
         try {
             NotificationResponse response = NotificationMapper.toResponse(saved);
             String json = objectMapper.writeValueAsString(response);
@@ -94,6 +98,18 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (Exception e) {
             // لو فشل الـ WebSocket مش مشكلة، الـ notification اتحفظت في الـ DB
         }
+
+        // بعت Push Notification لو عند اليوزر token محفوظ
+        pushNotificationService.sendPush(
+                recipient.getFcmToken(),
+                title,
+                message,
+                java.util.Map.of(
+                        "type", type.name(),
+                        "workOrderId", workOrder.getId().toString(),
+                        "notificationId", saved.getId().toString()
+                )
+        );
     }
     @Override
     @Transactional
@@ -146,5 +162,17 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (Exception e) {
             // لو الـ WebSocket فشل مش مشكلة، الـ DB اتحفظت
         }
+
+        // بعت Push Notification لو عند اليوزر token محفوظ
+        pushNotificationService.sendPush(
+                recipient.getFcmToken(),
+                title,
+                message,
+                java.util.Map.of(
+                        "type", type.name(),
+                        "machineId", machine.getId().toString(),
+                        "notificationId", saved.getId().toString()
+                )
+        );
     }
 }
