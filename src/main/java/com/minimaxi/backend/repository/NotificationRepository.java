@@ -16,6 +16,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     void deleteByPredictionId(Long predictionId);
     List<Notification> findByOrganizationIdAndTypeIn(Long organizationId, List<NotificationType> types);
 
+    // للكالندر لما الـ org مش معروفة من الـ JWT
+    List<Notification> findByTypeIn(List<NotificationType> types);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM Notification n WHERE n.prediction.id IN (SELECT p.id FROM Prediction p WHERE p.machine.id = :machineId)")
     void deleteByPredictionMachineId(@Param("machineId") Long machineId);
