@@ -20,14 +20,18 @@ public class PushNotificationService {
      */
     public void sendPush(String fcmToken, String title, String body, Map<String, String> data) {
         if (fcmToken == null || fcmToken.isBlank()) {
+            System.out.println("[PushNotificationService] SKIPPED — fcmToken is null/blank for this recipient.");
             return; // اليوزر معندوش token محفوظ (مفتحش الـ app من على جهازه لسه)
         }
 
         if (FirebaseApp.getApps().isEmpty()) {
             // Firebase لسه مش متهيأ -> على الأغلب ملف service account لسه مش موجود
-            System.err.println("[PushNotificationService] Firebase not initialized, skipping push.");
+            System.err.println("[PushNotificationService] SKIPPED — Firebase not initialized.");
             return;
         }
+
+        System.out.println("[PushNotificationService] Attempting send. token=" + fcmToken
+                + " title=" + title);
 
         Message message = Message.builder()
                 .setToken(fcmToken)
@@ -41,10 +45,12 @@ public class PushNotificationService {
                 .build();
 
         try {
-            FirebaseMessaging.getInstance().send(message);
+            String response = FirebaseMessaging.getInstance().send(message);
+            System.out.println("[PushNotificationService] SUCCESS — FCM message id: " + response);
         } catch (FirebaseMessagingException e) {
             // log error بس -> لو فشلت notification واحدة متوقفش باقي الـ flow
-            System.err.println("[PushNotificationService] Failed to send push: " + e.getMessage());
+            System.err.println("[PushNotificationService] FAILED — code=" + e.getMessagingErrorCode()
+                    + " message=" + e.getMessage());
         }
     }
 }
