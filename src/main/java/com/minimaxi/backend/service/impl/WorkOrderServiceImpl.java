@@ -78,9 +78,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     public WorkOrderResponse getWorkOrderById(Long id) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work order not found with id: " + id));
-
         boolean isRated = workOrderRatingRepository.findByWorkOrderId(id).isPresent();
-
         return WorkOrderMapper.toResponse(workOrder, isRated);
     }
 
@@ -270,16 +268,6 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         if (request.getHoursSpent() != null) totalMinutes += request.getHoursSpent() * 60;
         if (request.getMinutesSpent() != null) totalMinutes += request.getMinutesSpent();
 
-        // spare parts as JSON string
-        String sparePartsJson = "[]";
-        if (request.getSpareParts() != null && !request.getSpareParts().isEmpty()) {
-            try {
-                sparePartsJson = objectMapper.writeValueAsString(request.getSpareParts());
-            } catch (Exception e) {
-                sparePartsJson = "[]";
-            }
-        }
-
         // إنشاء الـ completion record
         WorkOrderCompletion completion = new WorkOrderCompletion();
         completion.setWorkOrder(workOrder);
@@ -291,8 +279,19 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         completion.setRootCause(request.getRootCause());
         completion.setTimeSpentMinutes(totalMinutes);
         completion.setAdditionalNotes(request.getAdditionalNotes());
-        completion.setSpareParts(sparePartsJson);
         completion.setCompletedAt(Instant.now());
+
+        // spare parts كـ سطور في جدول منفصل (بدل النص الواحد القديم)
+        if (request.getSpareParts() != null && !request.getSpareParts().isEmpty()) {
+            for (CompleteWorkOrderRequest.SparePart sp : request.getSpareParts()) {
+                WorkOrderSparePart entity = new WorkOrderSparePart();
+                entity.setCompletion(completion);
+                entity.setPartName(sp.getName());
+                entity.setQuantity(sp.getQuantity() != null ? sp.getQuantity() : 1);
+                completion.getSparePartsList().add(entity);
+            }
+        }
+
         workOrderCompletionRepository.save(completion);
 
         // تحديث الـ work order status

@@ -8,6 +8,8 @@ import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -45,11 +47,23 @@ public class WorkOrderCompletion {
     @Column(name = "additional_notes", length = Integer.MAX_VALUE)
     private String additionalNotes;
 
+    /**
+     * @deprecated الطريقة القديمة كانت بتخزن الـ spare parts كـ JSON نص واحد.
+     * استخدمي بدلًا منها {@link #sparePartsList} (جدول work_order_spare_part المنفصل).
+     * العمود ده سايباه عشان لو فيه بيانات قديمة محتاجة تتقرى، مش بيتحط فيه حاجة جديدة دلوقتي.
+     */
+    @Deprecated
     @Column(name = "spare_parts", length = Integer.MAX_VALUE)
     private String spareParts;
 
+    @Deprecated
     public String getSpareParts() { return spareParts; }
+    @Deprecated
     public void setSpareParts(String spareParts) { this.spareParts = spareParts; }
+
+    // الطريقة الجديدة: جدول منفصل بدل النص الواحد
+    @OneToMany(mappedBy = "completion", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WorkOrderSparePart> sparePartsList = new ArrayList<>();
 
     @NotNull
     @ColumnDefault("now()")

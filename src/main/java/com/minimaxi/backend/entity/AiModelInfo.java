@@ -18,7 +18,7 @@ import java.util.Map;
 @Table(name = "ai_model_info")
 public class AiModelInfo {
     @Id
-    @ColumnDefault("nextval('ai_model_info_id_seq')")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 

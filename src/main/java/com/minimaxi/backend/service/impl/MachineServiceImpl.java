@@ -383,6 +383,7 @@ public class MachineServiceImpl implements MachineService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getMachineNotes(Long machineId) {
         return workOrderCompletionRepository.findByMachineId(machineId)
                 .stream()
@@ -395,7 +396,14 @@ public class MachineServiceImpl implements MachineService {
                     map.put("action_taken", woc.getActionTaken());
                     map.put("root_cause", woc.getRootCause());
                     map.put("additional_notes", woc.getAdditionalNotes());
-                    map.put("spare_parts", woc.getSpareParts()); // ✅ جديد
+                    map.put("spare_parts", woc.getSparePartsList().stream()
+                            .map(sp -> {
+                                Map<String, Object> spMap = new LinkedHashMap<>();
+                                spMap.put("name", sp.getPartName());
+                                spMap.put("quantity", sp.getQuantity());
+                                return spMap;
+                            })
+                            .toList());
                     map.put("time_spent_minutes", woc.getTimeSpentMinutes());
                     map.put("completed_at", woc.getCompletedAt() != null ? woc.getCompletedAt().toString() : null);
                     return map;
