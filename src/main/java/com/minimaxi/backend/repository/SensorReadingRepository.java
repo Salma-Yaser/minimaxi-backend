@@ -10,11 +10,19 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
 
     List<SensorReading> findBySensorMachineIdOrderByReadingTimeDesc(Long machineId);
 
-
     void deleteBySensorMachineId(Long machineId);
+
     List<SensorReading> findBySensor_Machine_OrganizationId(Long organizationId);
+
     List<SensorReading> findBySensorMachineIdAndReadingTimeAfterOrderByReadingTimeAsc(
             Long machineId,
             Instant after
     );
+
+    /**
+     * Bulk cleanup used by the retention scheduler (purges readings older
+     * than the retention window so the table doesn't grow forever).
+     * Returns the number of rows deleted so it can be logged.
+     */
+    long deleteByReadingTimeBefore(Instant cutoff);
 }
