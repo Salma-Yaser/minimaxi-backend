@@ -96,4 +96,14 @@ public class UserController {
         }
         return userService.updateFcmToken(userId, fcmRequest.getToken());
     }
+
+    @PutMapping("/change-password")
+    public Map<String, Object> changePassword(
+            HttpServletRequest request,
+            @RequestBody Map<String, String> body
+    ) {
+        Long userId = extractUserId(request);
+        if (userId == null) throw new RuntimeException("Unauthorized");
+        return userService.changePassword(userId, body.get("currentPassword"), body.get("newPassword"));
+    }
 }

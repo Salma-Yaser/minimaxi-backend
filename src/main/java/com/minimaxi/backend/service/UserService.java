@@ -26,4 +26,6 @@ public interface UserService {
     UserResponse updateAvatar(Long id, UpdateAvatarRequest request);
 
     UserResponse updateFcmToken(Long id, String token);
+
+    Map<String, Object> changePassword(Long userId, String currentPassword, String newPassword);
 }

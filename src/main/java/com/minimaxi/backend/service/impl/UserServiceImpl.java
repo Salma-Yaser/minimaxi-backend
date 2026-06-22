@@ -11,6 +11,7 @@ import com.minimaxi.backend.enums.UserStatus;
 import com.minimaxi.backend.repository.AppUserRepository;
 import com.minimaxi.backend.repository.OrganizationRepository;
 import com.minimaxi.backend.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,15 +29,18 @@ public class UserServiceImpl implements UserService {
     private final OrganizationRepository organizationRepository;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     public UserServiceImpl(AppUserRepository appUserRepository,
                            OrganizationRepository organizationRepository,
                            JwtUtil jwtUtil,
-                           EmailService emailService) {
+                           EmailService emailService,
+                           PasswordEncoder passwordEncoder) {
         this.appUserRepository    = appUserRepository;
         this.organizationRepository = organizationRepository;
         this.jwtUtil              = jwtUtil;
         this.emailService         = emailService;
+        this.passwordEncoder      = passwordEncoder;
     }
 
     private UserResponse toResponse(AppUser user) {
@@ -180,4 +184,20 @@ public class UserServiceImpl implements UserService {
         user.setFcmToken(token);
         return toResponse(appUserRepository.save(user));
     }
+
+    @Override
+    public Map<String, Object> changePassword(Long userId, String currentPassword, String newPassword) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        appUserRepository.save(user);
+
+        return Map.of("success", true, "message", "Password changed successfully");
+    }
+
 }
