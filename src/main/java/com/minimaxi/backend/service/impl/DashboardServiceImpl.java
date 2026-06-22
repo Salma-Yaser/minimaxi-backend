@@ -117,14 +117,14 @@ public class DashboardServiceImpl implements DashboardService {
         });
 
         for (var p : predictions) {
-            if (p.getPredictedAt() == null || p.getFailureProbability() == null) continue;
+            if (p.getPredictedAt() == null || p.getConfidenceScore() == null) continue;
 
             String key = p.getPredictedAt()
                     .atZone(java.time.ZoneOffset.UTC)
                     .format(formatter);
 
             grouped.computeIfAbsent(key, k -> new ArrayList<>())
-                    .add(p.getFailureProbability().doubleValue());
+                    .add(p.getConfidenceScore().doubleValue());
         }
 
         if (grouped.isEmpty()) return getDefaultFailureTrend(normalizedPeriod);
@@ -192,8 +192,8 @@ public class DashboardServiceImpl implements DashboardService {
                 .limit(5)
                 .map(issue -> {
                     Prediction prediction = issue.getPrediction();
-                    double confidence = (prediction != null && prediction.getFailureProbability() != null)
-                            ? prediction.getFailureProbability().doubleValue()
+                    double confidence = (prediction != null && prediction.getConfidenceScore() != null)
+                            ? prediction.getConfidenceScore().doubleValue()
                             : 0.0;
                     return new AIInsightResponse(
                             issue.getId(),
