@@ -192,9 +192,17 @@ public class DashboardServiceImpl implements DashboardService {
                 .limit(5)
                 .map(issue -> {
                     Prediction prediction = issue.getPrediction();
-                    double confidence = (prediction != null && prediction.getConfidenceScore() != null)
-                            ? prediction.getConfidenceScore().doubleValue()
-                            : 0.0;
+                    double confidence = 0.0;
+                    if (prediction != null && prediction.getConfidenceScore() != null) {
+                        double raw = prediction.getConfidenceScore().doubleValue();
+                        // If stored as fraction (0..1) convert to percentage (0..100).
+                        // If already stored as percent (>1) keep as-is. Round to one decimal.
+                        if (raw <= 1.0) {
+                            confidence = Math.round(raw * 1000.0) / 10.0; // e.g. 0.783 -> 78.3
+                        } else {
+                            confidence = Math.round(raw * 10.0) / 10.0; // e.g. 78.34 -> 78.3
+                        }
+                    }
                     return new AIInsightResponse(
                             issue.getId(),
                             issue.getMachine().getId(),
