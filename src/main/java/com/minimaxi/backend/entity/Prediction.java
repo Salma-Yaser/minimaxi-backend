@@ -33,8 +33,29 @@ public class Prediction {
     @JoinColumn(name = "machine_id", nullable = false)
     private Machine machine;
 
-    @Column(name = "failure_probability", precision = 5, scale = 2)
-    private BigDecimal failureProbability;
+    @Column(name = "confidence_score", precision = 5, scale = 2)
+    private BigDecimal confidenceScore;
+
+    @Column(name = "current_value", precision = 10, scale = 4)
+    private BigDecimal currentValue;
+
+    @Column(name = "normal_min", precision = 10, scale = 4)
+    private BigDecimal normalMin;
+
+    @Column(name = "normal_max", precision = 10, scale = 4)
+    private BigDecimal normalMax;
+
+    @Column(name = "model_accuracy", precision = 6, scale = 4)
+    private BigDecimal modelAccuracy;
+
+    @Column(name = "model_precision", precision = 6, scale = 4)
+    private BigDecimal modelPrecision;
+
+    @Column(name = "model_recall", precision = 6, scale = 4)
+    private BigDecimal modelRecall;
+
+    @Column(name = "model_f1_score", precision = 6, scale = 4)
+    private BigDecimal modelF1Score;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "suggested_issue_type")

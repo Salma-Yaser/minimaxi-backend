@@ -6,9 +6,15 @@ import lombok.Getter;
 @Getter
 @Builder
 public class MachinePredictionResponse {
-    private Double failure_probability;
-    private Double rul;
-    private String ttf;
-    private String status;
-    private String recommendation;
+    private String severity;
+    private Double confidenceScore;
+    private Double rulCycles;
+    private Double ttfHours;
+    private String explanation;
+    private String problemSensor;
+    private Double currentValue;
+    private Double normalMin;
+    private Double normalMax;
+    private Double modelAccuracy;
+    private Double modelF1Score;
 }

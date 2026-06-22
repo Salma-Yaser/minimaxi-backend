@@ -114,11 +114,33 @@ public class PredictionScheduler {
         prediction.setSeverity(mapRiskToSeverity(riskLevel));
 
         Double confidence = ((Number) response.get("confidence")).doubleValue();
-        prediction.setFailureProbability(BigDecimal.valueOf(confidence * 100));
+        prediction.setConfidenceScore(BigDecimal.valueOf(confidence * 100));
 
         Double rul = ((Number) response.get("RUL")).doubleValue();
         prediction.setRulCycles(BigDecimal.valueOf(rul));
         prediction.setTtfHours(BigDecimal.valueOf(rul * 24));
+
+        Map<String, Object> metrics = (Map<String, Object>) response.get("model_metrics");
+        if (metrics != null) {
+            prediction.setModelAccuracy(BigDecimal.valueOf(((Number) metrics.get("accuracy")).doubleValue()));
+            prediction.setModelPrecision(BigDecimal.valueOf(((Number) metrics.get("precision")).doubleValue()));
+            prediction.setModelRecall(BigDecimal.valueOf(((Number) metrics.get("recall")).doubleValue()));
+            prediction.setModelF1Score(BigDecimal.valueOf(((Number) metrics.get("f1_score")).doubleValue()));
+        }
+
+        Object currentVal = response.get("current_value");
+        if (currentVal != null)
+            prediction.setCurrentValue(BigDecimal.valueOf(((Number) currentVal).doubleValue()));
+
+        Object nMin = response.get("normal_min");
+        if (nMin != null)
+            prediction.setNormalMin(BigDecimal.valueOf(((Number) nMin).doubleValue()));
+
+        Object nMax = response.get("normal_max");
+        if (nMax != null)
+            prediction.setNormalMax(BigDecimal.valueOf(((Number) nMax).doubleValue()));
+
+
 
         String workOrder = (String) response.get("work_order");
         String problemSensor = (String) response.get("problem_sensor");
