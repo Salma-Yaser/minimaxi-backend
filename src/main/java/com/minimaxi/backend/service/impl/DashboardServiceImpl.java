@@ -188,7 +188,7 @@ public class DashboardServiceImpl implements DashboardService {
         return issueRepository
                 .findByMachine_OrganizationIdAndSourceOrderByCreatedAtDesc(organizationId, IssueSource.AI)
                 .stream()
-                .filter(issue -> issue.getMachine() != null)
+                .filter(issue -> issue.getMachine() != null && issue.getPrediction() != null)
                 .limit(5)
                 .map(issue -> {
                     Prediction prediction = issue.getPrediction();
@@ -254,10 +254,7 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     private List<FailureTrendResponse> getDefaultFailureTrend(String period) {
-        return List.of(
-                new FailureTrendResponse("Jan 26", 10.0),
-                new FailureTrendResponse("Feb 26", 8.0)
-        );
+        return List.of();
     }
 
     private static class SensorTrendBuilder {

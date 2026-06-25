@@ -113,10 +113,17 @@ public class PredictionScheduler {
         Integer riskLevel = (Integer) response.get("risk_level");
         prediction.setSeverity(mapRiskToSeverity(riskLevel));
 
-        Double confidence = ((Number) response.get("confidence")).doubleValue();
-        prediction.setConfidenceScore(BigDecimal.valueOf(confidence * 100));
+        // Null safety للـ required fields
+        Number confRaw = (Number) response.get("confidence");
+        Number rulRaw  = (Number) response.get("RUL");
+        if (confRaw == null || rulRaw == null) {
+            System.err.println("AI response missing confidence or RUL for: " + machine.getName());
+            return;
+        }
+        double confidence = confRaw.doubleValue();
+        double rul = rulRaw.doubleValue();
 
-        Double rul = ((Number) response.get("RUL")).doubleValue();
+        prediction.setConfidenceScore(BigDecimal.valueOf(confidence * 100));
         prediction.setRulCycles(BigDecimal.valueOf(rul));
         prediction.setTtfHours(BigDecimal.valueOf(rul * 24));
 
@@ -140,12 +147,24 @@ public class PredictionScheduler {
         if (nMax != null)
             prediction.setNormalMax(BigDecimal.valueOf(((Number) nMax).doubleValue()));
 
-
-
-        String workOrder = (String) response.get("work_order");
+        //  Null-safe explanation
+        String workOrder     = (String) response.get("work_order");
         String problemSensor = (String) response.get("problem_sensor");
-        prediction.setExplanation(workOrder + " (Problem: " + problemSensor + ")");
-        prediction.setSuggestedIssueType(IssueType.MECHANICAL);
+        String explanationBase   = (workOrder     != null && !workOrder.isBlank())     ? workOrder     : "Prediction for " + machine.getName();
+        String explanationSuffix = (problemSensor != null && !problemSensor.isBlank()) ? " (Problem: " + problemSensor + ")" : "";
+        prediction.setExplanation(explanationBase + explanationSuffix);
+
+        //  issue_type من الـ AI بدل hardcoded
+        String issueTypeStr = (String) response.get("issue_type");
+        if (issueTypeStr != null) {
+            try {
+                prediction.setSuggestedIssueType(IssueType.valueOf(issueTypeStr.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                prediction.setSuggestedIssueType(IssueType.MECHANICAL);
+            }
+        } else {
+            prediction.setSuggestedIssueType(IssueType.MECHANICAL);
+        }
 
         predictionRepository.save(prediction);
         updateMachineStatus(machine, riskLevel);
@@ -153,10 +172,6 @@ public class PredictionScheduler {
         if (prediction.getSeverity() == PredictionSeverity.HIGH ||
                 prediction.getSeverity() == PredictionSeverity.CRITICAL) {
             notificationService.notifyCriticalPrediction(prediction);
-        }
-
-        // Auto-create an Issue من الـ HIGH-severity prediction
-        if (prediction.getSeverity() == PredictionSeverity.HIGH) {
             createIssueFromPredictionIfNeeded(machine, prediction, response);
         }
     }
