@@ -47,7 +47,7 @@ public class MachineServiceImpl implements MachineService {
             WorkOrderRepository workOrderRepository,
             WorkOrderCompletionRepository workOrderCompletionRepository,
             NotificationRepository notificationRepository,
-            UserAssetAssignmentRepository userAssetAssignmentRepository
+            UserAssetAssignmentRepository userAssetAssignmentRepository,
             WorkOrderRatingRepository workOrderRatingRepository
     ) {
         this.machineRepository = machineRepository;
