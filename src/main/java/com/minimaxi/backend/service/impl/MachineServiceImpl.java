@@ -35,6 +35,7 @@ public class MachineServiceImpl implements MachineService {
     private final WorkOrderCompletionRepository workOrderCompletionRepository;
     private final NotificationRepository notificationRepository;
     private final UserAssetAssignmentRepository userAssetAssignmentRepository;
+    private final WorkOrderRatingRepository workOrderRatingRepository;
 
     public MachineServiceImpl(
             MachineRepository machineRepository,
@@ -47,6 +48,7 @@ public class MachineServiceImpl implements MachineService {
             WorkOrderCompletionRepository workOrderCompletionRepository,
             NotificationRepository notificationRepository,
             UserAssetAssignmentRepository userAssetAssignmentRepository
+            WorkOrderRatingRepository workOrderRatingRepository
     ) {
         this.machineRepository = machineRepository;
         this.sensorRepository = sensorRepository;
@@ -58,6 +60,7 @@ public class MachineServiceImpl implements MachineService {
         this.workOrderCompletionRepository = workOrderCompletionRepository;
         this.notificationRepository = notificationRepository;
         this.userAssetAssignmentRepository = userAssetAssignmentRepository;
+        this.workOrderRatingRepository = workOrderRatingRepository;
     }
     @Transactional(readOnly = true)
     @Override
@@ -219,16 +222,21 @@ public class MachineServiceImpl implements MachineService {
             );
         }
 
-        if (force) {
+       if (force) {
             List<Long> woIds = workOrders.stream().map(WorkOrder::getId).toList();
 
             // 1. work order completions
             for (WorkOrder wo : workOrders) {
                 if (wo.getCompletion() != null) {
-                    workOrderCompletionRepository.delete(wo.getCompletion());
+                      workOrderCompletionRepository.delete(wo.getCompletion());
                 }
             }
 
+            // ✅ 1.5 work order ratings (يجي قبل حذف الـ work orders)
+            for (Long woId : woIds) {
+                  workOrderRatingRepository.findByWorkOrderId(woId)
+                  .ifPresent(workOrderRatingRepository::delete);
+            }
             // 2. notifications المرتبطة بالـ machine أو work orders
             notificationRepository.deleteByMachineId(id);
             for (Long woId : woIds) {
