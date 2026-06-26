@@ -18,8 +18,7 @@ import java.time.Instant;
 @Table(name = "prediction")
 public class Prediction {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "prediction_seq")
-    @SequenceGenerator(name = "prediction_seq", sequenceName = "prediction_id_seq", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
