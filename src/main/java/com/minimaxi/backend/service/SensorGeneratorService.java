@@ -24,7 +24,7 @@ public class SensorGeneratorService {
     // LOW=0%, MEDIUM=4%, HIGH=12%
     private static final double[] SF_STRESS_PERCENT = {
             0.0,
-            0.02,
+            0.04,
             0.12
     };
 
@@ -102,12 +102,13 @@ public class SensorGeneratorService {
                 case 10: // sensor_11
                 case 11: // sensor_12
                 case 14: // sensor_15
-                    // Key sensors — stress applies always (not 40% chance)
-                    stress = stressPct * max * (0.8 + r.nextDouble() * 0.4);
+                    double range = (max - min < 0.001) ? min * 0.01 : max - min;
+                    stress = stressPct * range * (0.8 + r.nextDouble() * 0.4);
                     break;
 
                 default:
-                    stress = stressPct * max * 0.10 * (0.8 + r.nextDouble() * 0.4);
+                    double rangeD = (max - min < 0.001) ? min * 0.01 : max - min;
+                    stress = stressPct * rangeD * 0.10 * (0.8 + r.nextDouble() * 0.4);
             }
 
             out[i] = round(baseValue + stress);

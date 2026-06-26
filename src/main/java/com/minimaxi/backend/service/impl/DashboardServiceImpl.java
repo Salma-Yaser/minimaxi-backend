@@ -12,6 +12,7 @@ import com.minimaxi.backend.service.DashboardService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -57,9 +58,19 @@ public class DashboardServiceImpl implements DashboardService {
                         && wo.getStatus() != WorkOrderStatus.CLOSED)
                 .count();
 
+        // ✅ Predicted Failures: machines with HIGH/CRITICAL prediction expected to fail within 7 days
+        Instant now = Instant.now();
+        Instant sevenDaysLater = now.plus(7, java.time.temporal.ChronoUnit.DAYS);
+
         long predictedFailures = predictionRepository.findByMachine_OrganizationId(organizationId).stream()
                 .filter(p -> p.getSeverity() == PredictionSeverity.HIGH
                         || p.getSeverity() == PredictionSeverity.CRITICAL)
+                .filter(p -> {
+                    if (p.getPredictedAt() == null || p.getTtfHours() == null) return false;
+                    Instant expectedFailureTime = p.getPredictedAt()
+                            .plus((long) p.getTtfHours().doubleValue(), java.time.temporal.ChronoUnit.HOURS);
+                    return !expectedFailureTime.isBefore(now) && !expectedFailureTime.isAfter(sevenDaysLater);
+                })
                 .map(p -> p.getMachine().getId())
                 .distinct()
                 .count();
@@ -76,7 +87,6 @@ public class DashboardServiceImpl implements DashboardService {
                 4.2
         );
     }
-
     @Override
     @Transactional(readOnly = true)
     public List<HealthDistributionResponse> getHealthDistribution(Long organizationId) {
