@@ -21,11 +21,11 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    // Softer stress levels
+    // LOW=0%, MEDIUM=4%, HIGH=12%
     private static final double[] SF_STRESS_PERCENT = {
-            0.0,     // LOW
-            0.004,   // MEDIUM
-            0.008    // HIGH
+            0.0,
+            0.04,
+            0.12
     };
 
     public List<Double> generate(Machine machine) {
@@ -35,7 +35,6 @@ public class SensorGeneratorService {
                 : "MCH-" + machine.getId();
 
         long timeSlot = System.currentTimeMillis() / 600000;
-
         Random r = new Random(assetId.hashCode() + timeSlot);
 
         double sf = computeStressFromAssetId(assetId, machine);
@@ -57,20 +56,19 @@ public class SensorGeneratorService {
                 ? machine.getCriticality().name().toLowerCase()
                 : "medium";
 
-        if ("low".equals(criticality)) {
+        switch (criticality) {
+            case "low":
+                // SF always 0.05 → 0.14  (below threshold 0.20) → Healthy
+                return 0.05 + ((hash % 10) / 100.0);
 
-            // Mostly healthy
-            return 0.02 + ((hash % 10) / 100.0);
+            case "high":
+                // SF always 0.55 → 0.64  (above threshold 0.45) → Critical
+                return 0.55 + ((hash % 10) / 100.0);
 
-        } else if ("high".equals(criticality)) {
-
-            // Small percentage become critical
-            return 0.35 + ((hash % 20) / 100.0);
-
+            default: // medium
+                // SF always 0.25 → 0.39  (between 0.20 and 0.45) → Warning
+                return 0.25 + ((hash % 15) / 100.0);
         }
-
-        // Medium machines
-        return 0.10 + ((hash % 20) / 100.0);
     }
 
     private List<Double> generate21(double sf, Random r) {
@@ -78,15 +76,12 @@ public class SensorGeneratorService {
         double[] out = new double[21];
 
         double stressPct;
-
         if (sf < 0.20) {
-            stressPct = SF_STRESS_PERCENT[0];
-        }
-        else if (sf < 0.45) {
-            stressPct = SF_STRESS_PERCENT[1];
-        }
-        else {
-            stressPct = SF_STRESS_PERCENT[2];
+            stressPct = SF_STRESS_PERCENT[0]; // 0%
+        } else if (sf < 0.45) {
+            stressPct = SF_STRESS_PERCENT[1]; // 4%
+        } else {
+            stressPct = SF_STRESS_PERCENT[2]; // 12%
         }
 
         for (int i = 0; i < 21; i++) {
@@ -101,27 +96,18 @@ public class SensorGeneratorService {
             double stress = 0;
 
             switch (i) {
-
-                case 3:   // sensor_4
-                case 6:   // sensor_7
-                case 8:   // sensor_9
-                case 10:  // sensor_11
-                case 11:  // sensor_12
-                case 14:  // sensor_15
-
-                    // Not every important sensor degrades
-                    if (r.nextDouble() < 0.40) {
-
-                        stress = stressPct * max *
-                                (0.8 + r.nextDouble() * 0.4);
-                    }
-
+                case 3:  // sensor_4
+                case 6:  // sensor_7
+                case 8:  // sensor_9
+                case 10: // sensor_11
+                case 11: // sensor_12
+                case 14: // sensor_15
+                    // Key sensors — stress applies always (not 40% chance)
+                    stress = stressPct * max * (0.8 + r.nextDouble() * 0.4);
                     break;
 
                 default:
-
-                    stress = stressPct * max * 0.10 *
-                            (0.8 + r.nextDouble() * 0.4);
+                    stress = stressPct * max * 0.10 * (0.8 + r.nextDouble() * 0.4);
             }
 
             out[i] = round(baseValue + stress);
