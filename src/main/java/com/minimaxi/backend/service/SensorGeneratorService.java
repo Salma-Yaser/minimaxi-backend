@@ -24,7 +24,7 @@ public class SensorGeneratorService {
     // LOW=0%, MEDIUM=4%, HIGH=12%
     private static final double[] SF_STRESS_PERCENT = {
             0.0,
-            0.04,
+            0.02,
             0.12
     };
 
