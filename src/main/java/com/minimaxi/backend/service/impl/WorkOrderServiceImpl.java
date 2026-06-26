@@ -34,6 +34,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final NotificationService notificationService;
     private final WorkOrderRatingRepository workOrderRatingRepository;
+    private final SensorRepository sensorRepository;
     public WorkOrderServiceImpl(
             WorkOrderRepository workOrderRepository,
             OrganizationRepository organizationRepository,
@@ -43,7 +44,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             WorkOrderCompletionRepository workOrderCompletionRepository,
             NotificationRepository notificationRepository,
             NotificationService notificationService,
-            WorkOrderRatingRepository workOrderRatingRepository
+            WorkOrderRatingRepository workOrderRatingRepository,
+            SensorRepository sensorRepository
     ) {
         this.workOrderRepository = workOrderRepository;
         this.organizationRepository = organizationRepository;
@@ -54,6 +56,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         this.notificationRepository = notificationRepository;
         this.notificationService = notificationService;
         this.workOrderRatingRepository = workOrderRatingRepository;
+        this.sensorRepository = sensorRepository;
     }
 
     @Override
@@ -341,19 +344,27 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             );
         }
 
-        // العنوان والوصف بييجوا تلقائياً من الـ Issue
-        // ملحوظة: WorkOrder.title أقصى طول 150 حرف، بينما Issue.summary لحد 200،
-        // فبنعمل truncate دفاعي عشان منقعش في validation error
-        String title = issue.getSummary();
-        workOrder.setTitle(title != null && title.length() > 150 ? title.substring(0, 150) : title);
-        workOrder.setDescription(issue.getDetails());
+        // استخرجي الـ sensor name من الـ prediction
+        String sensorName = null;
+        if (issue.getPrediction() != null && issue.getPrediction().getProblemSensor() != null) {
+            sensorName = resolveSensorName(issue.getPrediction().getProblemSensor());
+        }
+
+        // بني clean title
+        String severity = issue.getSeverity() != null ? issue.getSeverity().name() : "INFO";
+        String machineName = issue.getMachine() != null ? issue.getMachine().getName() : "Unknown Machine";
+        String anomalyLabel = sensorName != null ? sensorName + " Anomaly Detected" : "Anomaly Detected";
+        String cleanTitle = "[" + severity + "] " + anomalyLabel + " — " + machineName;
+        workOrder.setTitle(cleanTitle.length() > 150 ? cleanTitle.substring(0, 150) : cleanTitle);
+
+        // بني clean description
+        String cleanDescription = buildCleanDescription(issue.getPrediction(), sensorName);
+        workOrder.setDescription(cleanDescription != null ? cleanDescription : issue.getDetails());
 
         workOrder.setDueDate(request.getDueDate() != null ? LocalDate.parse(request.getDueDate()) : null);
         workOrder.setEstimatedHours(request.getEstimatedHours());
 
-        // الجزء الأهم: aiSuggested بيتبني تلقائياً من مصدر الـ Issue، مش من الفرونت
         workOrder.setAiSuggested(issue.getSource() == IssueSource.AI);
-
         workOrder.setCreatedAt(Instant.now());
         workOrder.setPriority(
                 request.getPriority() != null
@@ -364,7 +375,6 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
         WorkOrder saved = workOrderRepository.save(workOrder);
 
-        // قفل الـ Issue أوتوماتيكياً عشان منعملش work order تاني منها بالغلط
         issue.setStatus(IssueStatus.CONVERTED_TO_WO);
         issueRepository.save(issue);
 
@@ -378,9 +388,11 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             );
         }
 
-        return WorkOrderMapper.toResponse(saved);
+        String problemSensor = issue.getPrediction() != null
+                ? issue.getPrediction().getProblemSensor()
+                : null;
+        return WorkOrderMapper.toResponse(saved, null, resolveSensorName(problemSensor));
     }
-
 
     @Override
     @Transactional
@@ -420,4 +432,46 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     }
 
 
+
+
+    private String resolveSensorName(String problemSensor) {
+        if (problemSensor == null) return null;
+        try {
+            String[] parts = problemSensor.split("_");
+            Long sensorId = Long.parseLong(parts[parts.length - 1]);
+            return sensorRepository.findById(sensorId)
+                    .filter(s -> s.getSensorType() != null)
+                    .map(s -> s.getSensorType().getName())
+                    .orElse(problemSensor);
+        } catch (NumberFormatException e) {
+            return problemSensor;
+        }
+    }
+
+    private String buildCleanDescription(Prediction prediction, String sensorName) {
+        if (prediction == null) return null;
+        StringBuilder sb = new StringBuilder();
+
+        if (sensorName != null)
+            sb.append("Sensor: ").append(sensorName).append("\n");
+
+        if (prediction.getCurrentValue() != null)
+            sb.append("Current Value: ").append(prediction.getCurrentValue()).append("\n");
+
+        if (prediction.getNormalMin() != null && prediction.getNormalMax() != null)
+            sb.append("Normal Range: ").append(prediction.getNormalMin())
+                    .append(" – ").append(prediction.getNormalMax()).append("\n");
+
+        if (prediction.getRulCycles() != null)
+            sb.append("Remaining Useful Life: ").append(prediction.getRulCycles()).append(" cycles\n");
+
+        if (prediction.getConfidenceScore() != null) {
+            double conf = prediction.getConfidenceScore().doubleValue();
+            // لو متحفظة كـ fraction اضربيها في 100
+            double confPct = conf <= 1.0 ? Math.round(conf * 1000.0) / 10.0 : Math.round(conf * 10.0) / 10.0;
+            sb.append("Model Confidence: ").append(confPct).append("%\n");
+        }
+
+        return sb.toString().stripTrailing();
+    }
 }

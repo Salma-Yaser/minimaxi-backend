@@ -153,6 +153,9 @@ public class PredictionScheduler {
         String explanationBase   = (workOrder     != null && !workOrder.isBlank())     ? workOrder     : "Prediction for " + machine.getName();
         String explanationSuffix = (problemSensor != null && !problemSensor.isBlank()) ? " (Problem: " + problemSensor + ")" : "";
         prediction.setExplanation(explanationBase + explanationSuffix);
+        if (problemSensor != null && !problemSensor.isBlank()) {
+            prediction.setProblemSensor(problemSensor);
+        }
 
         //  issue_type من الـ AI بدل hardcoded
         String issueTypeStr = (String) response.get("issue_type");

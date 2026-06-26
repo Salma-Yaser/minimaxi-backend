@@ -52,5 +52,7 @@ public class WorkOrderResponse {
     @JsonProperty("is_rated")
     private Boolean isRated;
 
+    @JsonProperty("sensor_name")
+    private String sensorName;
     // parts_needed is missing
 }

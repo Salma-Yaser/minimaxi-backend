@@ -81,4 +81,9 @@ public class Prediction {
 
     @Column(name = "ttf_hours", precision = 10, scale = 2)
     private BigDecimal ttfHours;
+
+    @Size(max = 100)
+    @Column(name = "problem_sensor", length = 100)
+    private String problemSensor;
+
 }

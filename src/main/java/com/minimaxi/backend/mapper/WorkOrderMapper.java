@@ -9,25 +9,21 @@ public class WorkOrderMapper {
     private WorkOrderMapper() {
     }
 
-    // النسخة الأصلية — تفضل زي ما هي، isRated بترجع null لو مش معروفة
-    // (الأماكن اللي مش محتاجة الـ rating status، زي create/update/convert)
     public static WorkOrderResponse toResponse(WorkOrder workOrder) {
-        return toResponse(workOrder, null);
+        return toResponse(workOrder, null, null);
     }
 
-    // النسخة الجديدة — تستخدم لما عندنا معلومة الـ rating جاهزة
-    // (مثلاً getWorkOrderById بعد ما يسأل WorkOrderRatingRepository)
     public static WorkOrderResponse toResponse(WorkOrder workOrder, Boolean isRated) {
+        return toResponse(workOrder, isRated, null);
+    }
+
+    public static WorkOrderResponse toResponse(WorkOrder workOrder, Boolean isRated, String sensorName) {
         return WorkOrderResponse.builder()
                 .id(workOrder.getId())
                 .woNumber("WO-" + workOrder.getId())
                 .machineId(workOrder.getMachine() != null ? workOrder.getMachine().getId() : null)
                 .machineName(workOrder.getMachine() != null ? workOrder.getMachine().getName() : null)
-                .assetId(
-                        workOrder.getMachine() != null
-                                ? workOrder.getMachine().getAssetId()
-                                : null
-                )
+                .assetId(workOrder.getMachine() != null ? workOrder.getMachine().getAssetId() : null)
                 .title(workOrder.getTitle())
                 .description(workOrder.getDescription())
                 .priority(workOrder.getPriority() != null ? workOrder.getPriority().name().toLowerCase() : null)
@@ -54,6 +50,7 @@ public class WorkOrderMapper {
                 .estimatedHours(workOrder.getEstimatedHours())
                 .actualHours(null)
                 .isRated(isRated)
+                .sensorName(sensorName)
                 .build();
     }
 }
