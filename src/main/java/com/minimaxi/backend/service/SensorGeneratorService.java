@@ -2,7 +2,6 @@ package com.minimaxi.backend.service;
 
 import com.minimaxi.backend.entity.Machine;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Random;
 
@@ -21,15 +20,17 @@ public class SensorGeneratorService {
             8.49, 0.030, 395.37, 2388.00, 100.00, 39.15, 23.49
     };
 
-    // LOW=0%, MEDIUM=4%, HIGH=12%
-    private static final double[] SF_STRESS_PERCENT = {
-            0.0,
-            0.04,
-            0.12
+    // Actual max values from NASA training data during real failures
+    // Never generate values above these — model has never seen higher
+    private static final double[] FAILURE_MAX = {
+            518.67, 644.53, 1616.91, 1441.49, 14.62, 21.61, 556.06,
+            2388.56, 9244.59, 1.30, 48.53, 523.38, 2388.56, 8293.72,
+            8.58, 0.03, 400.00, 2388.00, 100.00, 39.43, 23.62
     };
 
-    public List<Double> generate(Machine machine) {
+    private static final int[] KEY_SENSORS = {3, 6, 8, 10, 11, 14};
 
+    public List<Double> generate(Machine machine) {
         String assetId = machine.getAssetId() != null
                 ? machine.getAssetId()
                 : "MCH-" + machine.getId();
@@ -49,45 +50,41 @@ public class SensorGeneratorService {
     }
 
     private double computeStressFromAssetId(String assetId, Machine machine) {
-
         int hash = Math.abs(assetId.hashCode());
 
         String criticality = machine.getCriticality() != null
                 ? machine.getCriticality().name().toLowerCase()
-                : "medium";
+                : "low";
 
         switch (criticality) {
             case "low":
-                // SF always 0.05 → 0.14  (below threshold 0.20) → Healthy
+                // SF 0.05 → 0.14 — always below 0.20 → Healthy
                 return 0.05 + ((hash % 10) / 100.0);
-
             case "high":
-                // SF always 0.55 → 0.64  (above threshold 0.45) → Critical
+                // SF 0.55 → 0.64 — always above 0.45 → Critical
                 return 0.55 + ((hash % 10) / 100.0);
-
             default: // medium
-                // SF always 0.25 → 0.39  (between 0.20 and 0.45) → Warning
+                // SF 0.25 → 0.39 — always between 0.20 and 0.45 → Warning
                 return 0.25 + ((hash % 15) / 100.0);
         }
     }
 
     private List<Double> generate21(double sf, Random r) {
-
         double[] out = new double[21];
 
-        double stressPct;
+        double pushFactor;
         if (sf < 0.20) {
-            stressPct = SF_STRESS_PERCENT[0]; // 0%
+            pushFactor = 0.0;   // Healthy — stay inside normal range
         } else if (sf < 0.45) {
-            stressPct = SF_STRESS_PERCENT[1]; // 4%
+            pushFactor = 0.35;  // Warning — 35% toward failure ceiling
         } else {
-            stressPct = SF_STRESS_PERCENT[2]; // 12%
+            pushFactor = 0.80;  // Critical — 80% toward failure ceiling
         }
 
         for (int i = 0; i < 21; i++) {
-
             double min = NORMAL_MIN[i];
             double max = NORMAL_MAX[i];
+            double failMax = FAILURE_MAX[i];
 
             double baseValue = (max - min < 0.001)
                     ? min
@@ -95,20 +92,15 @@ public class SensorGeneratorService {
 
             double stress = 0;
 
-            switch (i) {
-                case 3:  // sensor_4
-                case 6:  // sensor_7
-                case 8:  // sensor_9
-                case 10: // sensor_11
-                case 11: // sensor_12
-                case 14: // sensor_15
-                    double range = (max - min < 0.001) ? min * 0.01 : max - min;
-                    stress = stressPct * range * (0.8 + r.nextDouble() * 0.4);
-                    break;
-
-                default:
-                    double rangeD = (max - min < 0.001) ? min * 0.01 : max - min;
-                    stress = stressPct * rangeD * 0.10 * (0.8 + r.nextDouble() * 0.4);
+            if (pushFactor > 0) {
+                double headroom = failMax - max;
+                if (isKeySensor(i)) {
+                    // Key sensors — full push
+                    stress = headroom * pushFactor * (0.8 + r.nextDouble() * 0.4);
+                } else {
+                    // Non-key sensors — small nudge
+                    stress = headroom * pushFactor * 0.25 * (0.8 + r.nextDouble() * 0.4);
+                }
             }
 
             out[i] = round(baseValue + stress);
@@ -119,6 +111,13 @@ public class SensorGeneratorService {
                 out[7], out[8], out[9], out[10], out[11], out[12], out[13],
                 out[14], out[15], out[16], out[17], out[18], out[19], out[20]
         );
+    }
+
+    private boolean isKeySensor(int index) {
+        for (int k : KEY_SENSORS) {
+            if (index == k) return true;
+        }
+        return false;
     }
 
     private double round(double v) {
