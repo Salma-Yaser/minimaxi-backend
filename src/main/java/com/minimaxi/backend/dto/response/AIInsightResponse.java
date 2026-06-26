@@ -25,6 +25,7 @@ AIInsightResponse {
     private String insight;
     private String severity;
     private double confidence;
+    private String sensorName;
 
    /* private Long id;
     @JsonProperty("machine_id")
@@ -41,7 +42,7 @@ AIInsightResponse {
 
 
     public AIInsightResponse(Long id, Long machineId, String machineName, String assetId,
-                             String insight, String severity, double confidence) {
+                             String insight, String severity, double confidence , String sensorName) {
         this.id = id;
         this.machineId = machineId;
         this.machineName = machineName;
@@ -49,7 +50,9 @@ AIInsightResponse {
         this.insight = insight;
         this.severity = severity;
         this.confidence = confidence;
+        this.sensorName = sensorName;
     }
+    public String getSensorName() { return sensorName; }
 
     public Long getId() {
         return id;
