@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+import java.util.Map;
+
 @Getter
 @Builder
 public class WorkOrderResponse {
@@ -55,4 +58,23 @@ public class WorkOrderResponse {
     @JsonProperty("sensor_name")
     private String sensorName;
     // parts_needed is missing
+
+
+    @JsonProperty("action_taken")
+    private String actionTaken;
+
+    @JsonProperty("root_cause")
+    private String rootCause;
+
+    @JsonProperty("hours_spent")
+    private Integer hoursSpent;
+
+    @JsonProperty("minutes_spent")
+    private Integer minutesSpent;
+
+    @JsonProperty("additional_notes")
+    private String additionalNotes;
+
+    @JsonProperty("spare_parts")
+    private List<Map<String, Object>> spareParts;
 }

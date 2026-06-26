@@ -4,6 +4,8 @@ import com.minimaxi.backend.dto.response.PersonRefResponse;
 import com.minimaxi.backend.dto.response.WorkOrderResponse;
 import com.minimaxi.backend.entity.WorkOrder;
 
+import java.util.Map;
+
 public class WorkOrderMapper {
 
     private WorkOrderMapper() {
@@ -48,9 +50,44 @@ public class WorkOrderMapper {
                 .dueDate(workOrder.getDueDate() != null ? workOrder.getDueDate().toString() : null)
                 .completedAt(workOrder.getClosedAt() != null ? workOrder.getClosedAt().toString() : null)
                 .estimatedHours(workOrder.getEstimatedHours())
-                .actualHours(null)
                 .isRated(isRated)
                 .sensorName(sensorName)
+                .actualHours(
+                        workOrder.getCompletion() != null && workOrder.getCompletion().getTimeSpentMinutes() != null
+                                ? workOrder.getCompletion().getTimeSpentMinutes() / 60
+                                : null
+                )
+                .actionTaken(
+                        workOrder.getCompletion() != null ? workOrder.getCompletion().getActionTaken() : null
+                )
+                .rootCause(
+                        workOrder.getCompletion() != null ? workOrder.getCompletion().getRootCause() : null
+                )
+                .hoursSpent(
+                        workOrder.getCompletion() != null && workOrder.getCompletion().getTimeSpentMinutes() != null
+                                ? workOrder.getCompletion().getTimeSpentMinutes() / 60
+                                : null
+                )
+                .minutesSpent(
+                        workOrder.getCompletion() != null && workOrder.getCompletion().getTimeSpentMinutes() != null
+                                ? workOrder.getCompletion().getTimeSpentMinutes() % 60
+                                : null
+                )
+                .additionalNotes(
+                        workOrder.getCompletion() != null ? workOrder.getCompletion().getAdditionalNotes() : null
+                )
+                .spareParts(
+                        workOrder.getCompletion() != null
+                                ? workOrder.getCompletion().getSparePartsList().stream()
+                                .map(sp -> {
+                                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                                    m.put("name", sp.getPartName());
+                                    m.put("quantity", sp.getQuantity());
+                                    return m;
+                                })
+                                .toList()
+                                : null
+                )
                 .build();
     }
 }

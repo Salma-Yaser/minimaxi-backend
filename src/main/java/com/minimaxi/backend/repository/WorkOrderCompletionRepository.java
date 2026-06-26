@@ -10,8 +10,9 @@ import java.util.List;
 public interface WorkOrderCompletionRepository extends JpaRepository<WorkOrderCompletion, Long> {
 
 
-    @Query("SELECT woc FROM WorkOrderCompletion woc " +
+    @Query("SELECT DISTINCT woc FROM WorkOrderCompletion woc " +
             "JOIN FETCH woc.workOrder wo " +
+            "LEFT JOIN FETCH woc.sparePartsList " +
             "WHERE wo.machine.id = :machineId " +
             "ORDER BY woc.completedAt DESC")
     List<WorkOrderCompletion> findByMachineId(@Param("machineId") Long machineId);
