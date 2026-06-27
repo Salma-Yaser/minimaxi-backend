@@ -13,6 +13,8 @@ import com.minimaxi.backend.service.NotificationService;
 import com.minimaxi.backend.service.PushNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.minimaxi.backend.config.SensorMetaConstants;
+import java.util.Map;
 
 import java.time.Instant;
 import java.util.List;
@@ -118,9 +120,20 @@ public class NotificationServiceImpl implements NotificationService {
         Organization organization = prediction.getOrganization();
 
         String title = "Critical Machine Alert";
-        String message = "Machine \"" + machine.getName() + "\" reached CRITICAL status. " +
-                (prediction.getExplanation() != null ? prediction.getExplanation() : "Immediate attention required.");
+        String problemSensor = prediction.getProblemSensor();
+        String sensorDisplay = formatSensorName(problemSensor);
 
+        String baseExplanation = prediction.getExplanation() != null
+                ? prediction.getExplanation()
+                : "Immediate attention required.";
+
+// استبدلي sensor_X بالاسم الحقيقي في الـ explanation
+        String fixedExplanation = baseExplanation;
+        if (problemSensor != null && !problemSensor.isBlank()) {
+            fixedExplanation = baseExplanation.replace(problemSensor, sensorDisplay);
+        }
+
+        String message = "Machine \"" + machine.getName() + "\" reached CRITICAL status. " + fixedExplanation;
         // 1. Notify all admins/engineers in the organization
         List<AppUser> staff = appUserRepository.findByOrganizationIdAndRoleIn(
                 organization.getId(),
@@ -175,4 +188,13 @@ public class NotificationServiceImpl implements NotificationService {
                 )
         );
     }
+
+
+    private String formatSensorName(String rawSensorName) {
+        if (rawSensorName == null || rawSensorName.isBlank()) return "Unknown Sensor";
+        Map<String, String> labels = SensorMetaConstants.labelsBySensorKey();
+        String realName = labels.get(rawSensorName.toLowerCase().trim());
+        return realName != null ? realName : rawSensorName;
+    }
+
 }
