@@ -170,12 +170,10 @@ public class MaintenanceServiceImpl implements MaintenanceService {
             item.put("asset_id", p.getMachine().getAssetId());
             item.put("name", p.getMachine().getName());
             String typeName = null;
-            try {
-                if (p.getMachine().getAssetType() != null) {
-                    typeName = p.getMachine().getAssetType().getName();
-                }
-            } catch (Exception e) {
-                typeName = p.getMachine().getMachineType(); // fallback للـ machineType string
+            if (p.getMachine().getAssetType() != null) {
+                typeName = p.getMachine().getAssetType().getName();
+            } else {
+                typeName = p.getMachine().getMachineType();
             }
             item.put("type", typeName);
             item.put("ttf_hours", p.getTtfHours());
@@ -207,12 +205,10 @@ public class MaintenanceServiceImpl implements MaintenanceService {
             item.put("asset_id", p.getMachine().getAssetId());
             item.put("name", p.getMachine().getName());
             String typeName = null;
-            try {
-                if (p.getMachine().getAssetType() != null) {
-                    typeName = p.getMachine().getAssetType().getName();
-                }
-            } catch (Exception e) {
-                typeName = p.getMachine().getMachineType(); // fallback للـ machineType string
+            if (p.getMachine().getAssetType() != null) {
+                typeName = p.getMachine().getAssetType().getName();
+            } else {
+                typeName = p.getMachine().getMachineType();
             }
             item.put("type", typeName);
             item.put("location", p.getMachine().getLocation());
