@@ -33,4 +33,9 @@ public class WorkOrderSparePart {
     @ColumnDefault("1")
     @Column(name = "quantity", nullable = false)
     private Integer quantity = 1;
+
+    @NotNull
+    @Column(name = "cost")
+    private Double cost;
+// + getter/setter أو Lombok
 }

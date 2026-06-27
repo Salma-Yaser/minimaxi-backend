@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minimaxi.backend.dto.request.RateWorkOrderRequest;
 import com.minimaxi.backend.entity.WorkOrderRating;
+import com.minimaxi.backend.config.SensorMetaConstants;
+
 
 
 
@@ -284,25 +286,21 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         completion.setAdditionalNotes(request.getAdditionalNotes());
         completion.setCompletedAt(Instant.now());
 
-        // spare parts كـ سطور في جدول منفصل (بدل النص الواحد القديم)
+        // spare parts
         if (request.getSpareParts() != null && !request.getSpareParts().isEmpty()) {
             for (CompleteWorkOrderRequest.SparePart sp : request.getSpareParts()) {
                 WorkOrderSparePart entity = new WorkOrderSparePart();
                 entity.setCompletion(completion);
                 entity.setPartName(sp.getName());
                 entity.setQuantity(sp.getQuantity() != null ? sp.getQuantity() : 1);
+                entity.setCost(sp.getCost());
                 completion.getSparePartsList().add(entity);
             }
         }
 
         workOrderCompletionRepository.save(completion);
 
-        // تحديث الـ work order status
-        workOrder.setStatus(WorkOrderStatus.COMPLETED);
-        workOrder.setClosedAt(Instant.now());
-
-        workOrderRepository.save(workOrder);
-
+        // تحديث الـ work order status (مرة واحدة بس)
         workOrder.setStatus(WorkOrderStatus.COMPLETED);
         workOrder.setClosedAt(Instant.now());
         workOrderRepository.save(workOrder);
@@ -316,6 +314,8 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                         + ". Please rate the technician's performance."
         );
     }
+
+
     @Override
     @Transactional
     public WorkOrderResponse convertIssueToWorkOrder(Long issueId, ConvertIssueToWorkOrderRequest request) {
@@ -431,21 +431,11 @@ public class WorkOrderServiceImpl implements WorkOrderService {
         workOrderRatingRepository.save(rating);
     }
 
-
-
-
     private String resolveSensorName(String problemSensor) {
         if (problemSensor == null) return null;
-        try {
-            String[] parts = problemSensor.split("_");
-            Long sensorId = Long.parseLong(parts[parts.length - 1]);
-            return sensorRepository.findById(sensorId)
-                    .filter(s -> s.getSensorType() != null)
-                    .map(s -> s.getSensorType().getName())
-                    .orElse(problemSensor);
-        } catch (NumberFormatException e) {
-            return problemSensor;
-        }
+        String label = SensorMetaConstants.labelsBySensorKey().get(problemSensor.toLowerCase());
+        if (label != null) return label;
+        return problemSensor;
     }
 
     private String buildCleanDescription(Prediction prediction, String sensorName) {

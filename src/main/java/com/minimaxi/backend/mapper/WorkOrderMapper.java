@@ -83,6 +83,7 @@ public class WorkOrderMapper {
                                     Map<String, Object> m = new java.util.LinkedHashMap<>();
                                     m.put("name", sp.getPartName());
                                     m.put("quantity", sp.getQuantity());
+                                    m.put("cost", sp.getCost()); // ← زيدي السطر ده
                                     return m;
                                 })
                                 .toList()
