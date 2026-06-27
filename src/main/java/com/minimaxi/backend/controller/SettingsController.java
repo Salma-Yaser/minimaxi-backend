@@ -75,9 +75,9 @@ public class SettingsController {
     // Frontend calls: GET /api/settings/sensor-types  ✅
     @GetMapping("/sensor-types")
     public List<SensorTypeResponse> getSensorTypes() {
-        return settingsService.getSensorTypes();
+        Long organizationId = getCurrentUser().getOrganization().getId();
+        return settingsService.getSensorTypes(organizationId);
     }
-
     // Frontend calls: POST /api/settings/sensor-thresholds  ✅
     @PostMapping("/sensor-thresholds")
     public SensorThresholdResponse createSensorThreshold(

@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface SensorTypeRepository extends JpaRepository<SensorType, Long> {
     List<SensorType> findByOrganizationId(Long organizationId);
+
 }

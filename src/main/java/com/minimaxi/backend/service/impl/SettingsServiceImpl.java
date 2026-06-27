@@ -109,8 +109,8 @@ public class SettingsServiceImpl implements SettingsService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SensorTypeResponse> getSensorTypes() {
-        return sensorTypeRepository.findAll()
+    public List<SensorTypeResponse> getSensorTypes(Long organizationId) {
+        return sensorTypeRepository.findByOrganizationId(organizationId)
                 .stream()
                 .map(s -> new SensorTypeResponse(s.getId(), s.getName(), s.getUnit()))
                 .toList();
