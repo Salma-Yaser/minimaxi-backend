@@ -13,6 +13,15 @@ import com.minimaxi.backend.service.MaintenanceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
+
+
+import com.minimaxi.backend.repository.PredictionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.math.BigDecimal;
+import java.time.ZoneOffset;
+import java.util.stream.Collectors;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -30,11 +39,13 @@ public class MaintenanceServiceImpl implements MaintenanceService {
 
     private final WorkOrderRepository workOrderRepository;
     private final NotificationRepository notificationRepository;
-
+    private final PredictionRepository predictionRepository;
     public MaintenanceServiceImpl(WorkOrderRepository workOrderRepository,
-                                  NotificationRepository notificationRepository) {
+                                  NotificationRepository notificationRepository,
+                                    PredictionRepository predictionRepository ) {
         this.workOrderRepository = workOrderRepository;
         this.notificationRepository = notificationRepository;
+        this.predictionRepository = predictionRepository;
     }
 
     @Override
@@ -134,6 +145,142 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         return switch (severity) {
             case CRITICAL, HIGH -> "critical";
             case MEDIUM, LOW -> "warning";
+        };
+    }
+
+
+
+    @Override
+    public List<Map<String, Object>> getUpcomingMaintenance(Long orgId) {
+        // TTF ≤ 2000 وعندها work order active
+        List<Prediction> predictions = predictionRepository
+                .findLatestPredictionsWithTtfUnder(orgId, BigDecimal.valueOf(2000));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (Prediction p : predictions) {
+            List<WorkOrder> activeWOs = workOrderRepository
+                    .findActiveWorkOrdersForMachine(orgId, p.getMachine().getId());
+
+            if (activeWOs.isEmpty()) continue; // معندهاش WO → مش upcoming
+
+            WorkOrder wo = activeWOs.get(0); // أحدث WO
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("asset_id", p.getMachine().getAssetId());
+            item.put("name", p.getMachine().getName());
+            String typeName = null;
+            try {
+                if (p.getMachine().getAssetType() != null) {
+                    typeName = p.getMachine().getAssetType().getName();
+                }
+            } catch (Exception e) {
+                typeName = p.getMachine().getMachineType(); // fallback للـ machineType string
+            }
+            item.put("type", typeName);
+            item.put("ttf_hours", p.getTtfHours());
+            item.put("priority", severityToPriority(p.getSeverity()));
+            item.put("work_order_id", wo.getId());
+            item.put("work_order_number", "WO-" + wo.getCreatedAt().atZone(ZoneOffset.UTC).getYear()
+                    + "-" + wo.getId());
+            result.add(item);
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> getExpectedMaintenance(Long orgId) {
+        // TTF ≤ 2000 وملهاش work order
+        List<Long> machineIdsWithWO = workOrderRepository
+                .findMachineIdsWithActiveWorkOrders(orgId);
+
+        List<Prediction> predictions = predictionRepository
+                .findLatestPredictionsWithTtfUnder(orgId, BigDecimal.valueOf(2000));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (Prediction p : predictions) {
+            if (machineIdsWithWO.contains(p.getMachine().getId())) continue; // عندها WO → مش expected
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("asset_id", p.getMachine().getAssetId());
+            item.put("name", p.getMachine().getName());
+            String typeName = null;
+            try {
+                if (p.getMachine().getAssetType() != null) {
+                    typeName = p.getMachine().getAssetType().getName();
+                }
+            } catch (Exception e) {
+                typeName = p.getMachine().getMachineType(); // fallback للـ machineType string
+            }
+            item.put("type", typeName);
+            item.put("location", p.getMachine().getLocation());
+            item.put("ttf_hours", p.getTtfHours());
+            item.put("risk_level", severityToPriority(p.getSeverity()));
+            item.put("notes", p.getExplanation());
+            result.add(item);
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> getLoadForecast(Long orgId, int weeks) {
+        LocalDate today = LocalDate.now();
+
+        List<Long> machineIdsWithWO = workOrderRepository
+                .findMachineIdsWithActiveWorkOrders(orgId);
+
+        List<Prediction> allPredictions = predictionRepository
+                .findLatestPredictionsForOrg(orgId);
+
+        List<Map<String, Object>> forecast = new ArrayList<>();
+
+        for (int i = 0; i < weeks; i++) {
+            LocalDate weekStart = today.plusDays((long) i * 7);
+            LocalDate weekEnd = weekStart.plusDays(6);
+
+            // Scheduled: work orders due في الأسبوع ده، status مش completed أو cancelled
+            long scheduled = workOrderRepository
+                    .findByOrganization_IdAndDueDateBetweenAndStatusIn(
+                            orgId, weekStart, weekEnd,
+                            List.of(WorkOrderStatus.OPEN, WorkOrderStatus.IN_PROGRESS))
+                    .size();
+
+            // Predicted: machines بدون WO، الـ TTF ÷ 8 بيوقعها في الأسبوع ده
+            long predicted = allPredictions.stream()
+                    .filter(p -> !machineIdsWithWO.contains(p.getMachine().getId()))
+                    .filter(p -> p.getPredictedAt() != null)
+                    .filter(p -> {
+                        double daysUntilFailure = p.getTtfHours().doubleValue() / 8.0;
+                        LocalDate failureDate = p.getPredictedAt()
+                                .atZone(ZoneOffset.UTC).toLocalDate()
+                                .plusDays((long) daysUntilFailure);
+                        return !failureDate.isBefore(weekStart) && !failureDate.isAfter(weekEnd);
+                    })
+                    .count();
+
+            Map<String, Object> weekData = new LinkedHashMap<>();
+            weekData.put("week", "Week " + (i + 1));
+            weekData.put("week_start", weekStart.toString());
+            weekData.put("week_end", weekEnd.toString());
+            weekData.put("scheduled", scheduled);
+            weekData.put("predicted", predicted);
+            forecast.add(weekData);
+        }
+
+        return forecast;
+    }
+
+    // helper
+    private String severityToPriority(PredictionSeverity severity) {
+        if (severity == null) return "medium";
+        return switch (severity) {
+            case CRITICAL -> "critical";
+            case HIGH -> "high";
+            case MEDIUM -> "medium";
+            case LOW -> "low";
         };
     }
 }

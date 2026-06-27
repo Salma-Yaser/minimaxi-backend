@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/maintenance")
@@ -34,5 +35,36 @@ public class MaintenanceController {
             orgId = jwtUtil.extractOrganizationId(authHeader.substring(7));
         }
         return maintenanceService.getMaintenanceEvents(month, year, orgId);
+    }
+
+
+    @GetMapping("/assets/upcoming")
+    public List<Map<String, Object>> getUpcomingMaintenance(HttpServletRequest request) {
+        Long orgId = extractOrgId(request);
+        return maintenanceService.getUpcomingMaintenance(orgId);
+    }
+
+    @GetMapping("/assets/expected")
+    public List<Map<String, Object>> getExpectedMaintenance(HttpServletRequest request) {
+        Long orgId = extractOrgId(request);
+        return maintenanceService.getExpectedMaintenance(orgId);
+    }
+
+    @GetMapping("/load-forecast")
+    public List<Map<String, Object>> getLoadForecast(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "4") int weeks
+    ) {
+        Long orgId = extractOrgId(request);
+        return maintenanceService.getLoadForecast(orgId, weeks);
+    }
+
+    // أضيفي الـ helper method لو مش موجودة
+    private Long extractOrgId(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return jwtUtil.extractOrganizationId(authHeader.substring(7));
+        }
+        return null;
     }
 }
