@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minimaxi.backend.dto.request.AskRequest;
 import com.minimaxi.backend.dto.response.AskResponse;
+import com.minimaxi.backend.dto.response.ChatMessageResponse;
+import com.minimaxi.backend.dto.response.ConversationResponse;
 import com.minimaxi.backend.entity.*;
 import com.minimaxi.backend.enums.ChatSender;
 import com.minimaxi.backend.enums.ChatStatus;
@@ -183,5 +185,37 @@ public class AiServiceImpl implements AiService {
         JsonNode root = objectMapper.readTree(response.body());
         return root.path("choices").get(0)
                 .path("message").path("content").asText();
+    }
+
+
+
+    @Override
+    public List<ConversationResponse> getConversations(Long userId) {
+        return conversationRepository.findByUserIdOrderByLastMessageAtDesc(userId)
+                .stream()
+                .map(conv -> ConversationResponse.builder()
+                        .id(conv.getId())
+                        .machineId(conv.getContextMachine() != null ? conv.getContextMachine().getId() : null)
+                        .machineName(conv.getContextMachine() != null ? conv.getContextMachine().getName() : null)
+                        .workOrderId(conv.getContextWorkOrder() != null ? conv.getContextWorkOrder().getId() : null)
+                        .workOrderTitle(conv.getContextWorkOrder() != null ? conv.getContextWorkOrder().getTitle() : null)
+                        .status(conv.getStatus().name().toLowerCase())
+                        .createdAt(conv.getCreatedAt())
+                        .lastMessageAt(conv.getLastMessageAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public List<ChatMessageResponse> getMessages(Long conversationId) {
+        return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId)
+                .stream()
+                .map(msg -> ChatMessageResponse.builder()
+                        .id(msg.getId())
+                        .sender(msg.getSender().name())
+                        .message(msg.getMessageText())
+                        .createdAt(msg.getCreatedAt())
+                        .build())
+                .toList();
     }
 }
