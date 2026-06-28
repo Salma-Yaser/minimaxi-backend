@@ -4,5 +4,5 @@ import com.minimaxi.backend.dto.request.AskRequest;
 import com.minimaxi.backend.dto.response.AskResponse;
 
 public interface AiService {
-    AskResponse ask(AskRequest request);
+    AskResponse ask(AskRequest request, Long userId, Long organizationId);
 }
