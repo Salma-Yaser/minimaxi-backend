@@ -143,6 +143,7 @@ public class AuthServiceImpl implements AuthService {
                         .companyId(organizationId)
                         .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                         .status(user.getStatus() != null ? user.getStatus().name().toLowerCase() : null)
+                        .avatar(user.getAvatar())
                         .build())
                 .token(token)
                 .build();
