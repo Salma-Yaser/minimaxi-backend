@@ -190,6 +190,7 @@ public class AiServiceImpl implements AiService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public List<ConversationResponse> getConversations(Long userId) {
         return conversationRepository.findByUserIdOrderByLastMessageAtDesc(userId)
                 .stream()
