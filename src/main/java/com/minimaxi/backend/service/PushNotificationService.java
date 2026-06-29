@@ -1,6 +1,8 @@
 package com.minimaxi.backend.service;
 
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidConfig.Priority;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
@@ -32,6 +34,9 @@ public class PushNotificationService {
                 .putData("title", title)
                 .putData("body", body)
                 .putAllData(data)
+                .setAndroidConfig(AndroidConfig.builder()
+                        .setPriority(Priority.HIGH)
+                        .build())
                 .build();
 
         try {
